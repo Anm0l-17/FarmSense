@@ -31,13 +31,13 @@ export const Route = createFileRoute("/crop-diagnosis/result")({
 });
 
 function DiagnosisResult() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { diagnosis, recommendation, saveDiagnosis } = useFarm();
 
   const isHealthy = diagnosis.severity === "Low" || diagnosis.disease.toLowerCase().includes("healthy");
 
   return (
-    <AppLayout title="Diagnosis Result" subtitle="AI analysis of your uploaded crop image.">
+    <AppLayout title={t("diag.resultTitle")} subtitle={t("diag.resultSub")}>
       <div className="mx-auto max-w-5xl space-y-5">
         <section className="surface-card p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -54,7 +54,7 @@ function DiagnosisResult() {
                 )}
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Crop Specimen</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("diag.specimen")}</p>
                 <p className="text-2xl font-bold">{diagnosis.crop}</p>
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                   AI Assessment:{" "}
@@ -68,7 +68,7 @@ function DiagnosisResult() {
             {/* AI Confidence - Green Positive Meter */}
             <div className="w-full sm:w-48 text-right space-y-1">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-muted-foreground uppercase tracking-wide">AI Confidence</span>
+                <span className="text-muted-foreground uppercase tracking-wide">{t("diag.aiConfidence")}</span>
                 <span className="text-success font-bold">{diagnosis.confidence}%</span>
               </div>
               <Progress value={diagnosis.confidence} className="h-2.5 bg-muted [&>div]:bg-success" />
@@ -92,14 +92,14 @@ function DiagnosisResult() {
             <section className={isHealthy ? "surface-card border-success/30 bg-success/5 p-5" : "surface-card p-5"}>
               <h2 className="font-semibold flex items-center gap-2">
                 {isHealthy ? <CheckCircle className="size-5 text-success" /> : <Sparkles className="size-5 text-primary" />}
-                What does this mean?
+                {t("diag.whatDoesThisMean")}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {diagnosis.description}
               </p>
 
               <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Observed Indicators
+                {t("diag.observedIndicators")}
               </h3>
               <ul className="mt-2 space-y-1.5 text-sm">
                 {diagnosis.symptoms.map((s) => (
@@ -114,7 +114,7 @@ function DiagnosisResult() {
             </section>
 
             <section className="surface-card p-5">
-              <h2 className="font-semibold">Recommended Farm Actions</h2>
+              <h2 className="font-semibold">{t("diag.recommendedActions")}</h2>
               <ol className="mt-3 space-y-2 text-sm">
                 {diagnosis.actions.map((a, i) => (
                   <li key={a} className="flex gap-3">
@@ -128,7 +128,7 @@ function DiagnosisResult() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild>
                   <Link to="/ai-assistant">
-                    <Bot className="size-4" /> Ask AI About This Diagnosis
+                    <Bot className="size-4" /> {t("diag.askAiAbout")}
                   </Link>
                 </Button>
                 <Button asChild variant="outline">
@@ -139,7 +139,7 @@ function DiagnosisResult() {
           </div>
 
           <div className="space-y-5">
-            {/* Impact Box - Lenient for Healthy */}
+            {/* Impact Box */}
             <section
               className={
                 isHealthy
@@ -153,34 +153,29 @@ function DiagnosisResult() {
                 ) : (
                   <TrendingDown className="size-4 text-warning" aria-hidden />
                 )}
-                {isHealthy ? "Protected Yield Status" : "Estimated Potential Yield Loss"}
+                {isHealthy ? t("diag.protectedYield") : t("diag.estimatedYieldLoss")}
               </div>
               <p className={isHealthy ? "mt-2 text-4xl font-bold text-success" : "mt-2 text-4xl font-bold"}>
                 {diagnosis.yield_loss}%
               </p>
               <p className="mt-2 text-sm">
-                Potential Revenue Impact:{" "}
+                {t("diag.potentialImpact")}:{" "}
                 <span className="font-semibold">
-                  {isHealthy ? "₹0 (Full Yield Retained)" : formatRange(diagnosis.revenue_impact)}
+                  {isHealthy ? `₹0 (${t("diag.retained")})` : formatRange(diagnosis.revenue_impact)}
                 </span>
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {isHealthy
-                  ? "Your crop is healthy! No financial loss expected from this crop area."
-                  : "Estimate based on disease severity and crop area."}
               </p>
             </section>
 
             <section className="surface-card p-5">
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <CalendarClock className="size-4 text-primary" aria-hidden /> Diagnosis details
+                <CalendarClock className="size-4 text-primary" aria-hidden /> {t("diag.details")}
               </div>
               <dl className="mt-3 space-y-2 text-sm">
                 {[
-                  ["Analyzed", formatDate(diagnosis.created_at)],
-                  ["Crop Specimen", diagnosis.crop],
-                  ["AI Confidence", `${diagnosis.confidence}%`],
-                  ["Health Status", isHealthy ? "Healthy" : diagnosis.severity],
+                  [t("diag.analyzed"), formatDate(diagnosis.created_at)],
+                  [t("diag.specimen"), diagnosis.crop],
+                  [t("diag.aiConfidence"), `${diagnosis.confidence}%`],
+                  [t("diag.healthStatus"), isHealthy ? (lang === "hi" ? "स्वस्थ" : lang === "kn" ? "ಆರೋಗ್ಯಕರ" : "Healthy") : diagnosis.severity],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">{k}</dt>
@@ -193,10 +188,10 @@ function DiagnosisResult() {
                 className="mt-4 w-full"
                 onClick={() => {
                   saveDiagnosis(diagnosis);
-                  toast.success("Diagnosis saved to your history");
+                  toast.success(lang === "hi" ? "इतिहास में सहेजा गया" : lang === "kn" ? "ಇತಿಹಾಸದಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ" : "Diagnosis saved to your history");
                 }}
               >
-                <Save className="size-4" /> Save to History
+                <Save className="size-4" /> {t("diag.saveHistory")}
               </Button>
             </section>
           </div>

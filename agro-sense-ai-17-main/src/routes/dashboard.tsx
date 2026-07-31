@@ -100,7 +100,7 @@ function Dashboard() {
             <p className="text-sm text-muted-foreground">{diagnosis.disease}</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-xs font-semibold text-primary">
-                {diagnosis.confidence}% confidence
+                {diagnosis.confidence}% {t("diag.aiConfidence")}
               </span>
               <SeverityBadge level={diagnosis.severity} />
             </div>
@@ -121,10 +121,10 @@ function Dashboard() {
             >
               <p className="text-2xl font-bold">{weather.temperature}°C</p>
               <p className="text-sm text-muted-foreground">
-                {weather.humidity}% humidity · {weather.rain_probability}% rain
+                {weather.humidity}% {t("dash.humidity")} · {weather.rain_probability}% {t("dash.rain")}
               </p>
               <div className="mt-2">
-                <SeverityBadge level={weather.risk} label={`${weather.risk.toUpperCase()} RISK`} />
+                <SeverityBadge level={weather.risk} label={`${weather.risk.toUpperCase()} ${t("dash.weatherRisk").toUpperCase()}`} />
               </div>
             </MetricCard>
           )}
@@ -146,7 +146,7 @@ function Dashboard() {
               <p className="text-2xl font-bold">{formatCurrency(market.current_price)}</p>
               <p className="mt-1 text-sm font-medium text-success">
                 <TrendingUp className="mr-1 inline size-3.5" aria-hidden />
-                Predicted {formatCurrency(market.predicted_price)} (+{changePct}%)
+                {t("dash.expected")} {formatCurrency(market.predicted_price)} (+{changePct}%)
               </p>
             </MetricCard>
           )}
@@ -161,9 +161,9 @@ function Dashboard() {
               </Button>
             }
           >
-            <p className="text-2xl font-bold">Good</p>
-            <p className="text-sm text-muted-foreground">1 active issue</p>
-            <p className="mt-1 text-xs font-medium text-warning">Monitor closely</p>
+            <p className="text-2xl font-bold">{diagnosis.severity === "Low" ? t("severity.Low") : diagnosis.severity}</p>
+            <p className="text-sm text-muted-foreground">{diagnosis.disease}</p>
+            <p className="mt-1 text-xs font-medium text-warning">{t("dash.latestDiagnosis")}</p>
           </MetricCard>
         </div>
 
@@ -192,7 +192,7 @@ function Dashboard() {
                 <p className="text-lg font-bold">{diagnosis.crop}</p>
                 <p className="text-sm text-muted-foreground">{diagnosis.disease}</p>
                 <p className="text-xs font-medium text-primary">
-                  {diagnosis.confidence}% AI Confidence
+                  {diagnosis.confidence}% {t("diag.aiConfidence")}
                 </p>
               </div>
             </div>
@@ -207,14 +207,14 @@ function Dashboard() {
           {/* Weather snapshot */}
           <section className="surface-card p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Weather Snapshot
+              {t("dash.weatherSnapshot")}
             </h3>
             <dl className="mt-3 grid grid-cols-2 gap-3">
               {[
-                { icon: Thermometer, label: "Temperature", value: `${weather.temperature}°C` },
-                { icon: Droplets, label: "Humidity", value: `${weather.humidity}%` },
-                { icon: CloudRain, label: "Rain", value: `${weather.rain_probability}%` },
-                { icon: Wind, label: "Wind", value: `${weather.wind_speed} km/h` },
+                { icon: Thermometer, label: t("dash.temp"), value: `${weather.temperature}°C` },
+                { icon: Droplets, label: t("dash.humidity"), value: `${weather.humidity}%` },
+                { icon: CloudRain, label: t("dash.rain"), value: `${weather.rain_probability}%` },
+                { icon: Wind, label: t("dash.wind"), value: `${weather.wind_speed} km/h` },
               ].map((w) => (
                 <div key={w.label} className="rounded-xl bg-muted/60 p-3">
                   <dt className="flex items-center gap-1.5 text-[11px] uppercase text-muted-foreground">
@@ -225,7 +225,7 @@ function Dashboard() {
               ))}
             </dl>
             <div className="mt-4">
-              <SeverityBadge level={weather.risk} label={`${weather.risk.toUpperCase()} WEATHER RISK`} />
+              <SeverityBadge level={weather.risk} label={`${weather.risk.toUpperCase()} ${t("dash.weatherRisk").toUpperCase()}`} />
             </div>
             <Button asChild variant="outline" className="mt-4 w-full">
               <Link to="/market-weather">{t("common.viewWeather")}</Link>
@@ -235,16 +235,16 @@ function Dashboard() {
           {/* Market snapshot */}
           <section className="surface-card p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Market Snapshot
+              {t("dash.marketSnapshot")}
             </h3>
             <MiniPriceChart data={market.series} />
             <div className="mt-2 flex items-end justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Current</p>
+                <p className="text-xs text-muted-foreground">{t("dash.current")}</p>
                 <p className="text-xl font-bold">{formatCurrency(market.current_price)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Expected</p>
+                <p className="text-xs text-muted-foreground">{t("dash.expected")}</p>
                 <p className="text-xl font-bold text-success">
                   ↑ {formatCurrency(market.predicted_price)}
                 </p>
@@ -263,10 +263,10 @@ function Dashboard() {
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { to: "/crop-diagnosis", icon: Camera, label: "📸 Diagnose Crop" },
-              { to: "/market-weather", icon: IndianRupee, label: "💰 Check Market" },
-              { to: "/market-weather", icon: CloudRain, label: "🌦️ Check Weather" },
-              { to: "/ai-assistant", icon: Bot, label: "🤖 Ask AI" },
+              { to: "/crop-diagnosis", icon: Camera, label: `📸 ${t("dash.diagnoseCrop")}` },
+              { to: "/market-weather", icon: IndianRupee, label: `💰 ${t("dash.checkMarket")}` },
+              { to: "/market-weather", icon: CloudRain, label: `🌦️ ${t("dash.checkWeather")}` },
+              { to: "/ai-assistant", icon: Bot, label: `🤖 ${t("dash.askAiQuick")}` },
             ].map((a) => (
               <Button
                 key={a.label}

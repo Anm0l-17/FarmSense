@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Paperclip, Send, Sparkles, User } from "lucide-react";
+import { Bot, Mic, MicOff, Paperclip, Send, Sparkles, User, Volume2, VolumeX } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,12 @@ function Assistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -48,10 +52,95 @@ function Assistant() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
 
+  // Clean up speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Voice Input (Speech-to-Text)
+  function toggleListening() {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error("Speech recognition failed to start:", e);
+      setIsListening(false);
+    }
+  }
+
+  // Voice Output (Text-to-Speech)
+  function toggleSpeech(id: string, text: string) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
+
+    utterance.onend = () => setSpeakingId(null);
+    utterance.onerror = () => setSpeakingId(null);
+
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  }
+
   async function send(text: string) {
     const question = text.trim();
     if (!question || thinking) return;
     setInput("");
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    }
     setMessages((m) => [
       ...m,
       { id: `u_${Date.now()}`, role: "user", content: question, created_at: new Date().toISOString() },
@@ -66,7 +155,12 @@ function Assistant() {
         {
           id: `e_${Date.now()}`,
           role: "assistant",
-          content: "We couldn't connect to the server. Showing demo guidance instead — please try again.",
+          content:
+            lang === "hi"
+              ? "सर्वर से कनेक्ट नहीं हो सका। कृपया पुनः प्रयास करें।"
+              : lang === "kn"
+                ? "ಸಂಪರ್ಕಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+                : "We couldn't connect to the server. Please try again.",
           created_at: new Date().toISOString(),
         },
       ]);
@@ -101,9 +195,28 @@ function Assistant() {
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Bot className="size-4" aria-hidden />
             </span>
-            <p className="max-w-[85%] rounded-2xl rounded-tl-sm bg-accent px-4 py-3 text-sm text-accent-foreground">
-              {t("assistant.welcome")}
-            </p>
+            <div className="group relative max-w-[85%] rounded-2xl rounded-tl-sm bg-accent px-4 py-3 text-sm text-accent-foreground">
+              <p>{t("assistant.welcome")}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleSpeech("welcome", t("assistant.welcome"))}
+                className="mt-2 h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
+              >
+                {speakingId === "welcome" ? (
+                  <>
+                    <VolumeX className="size-3.5 animate-pulse text-destructive" />
+                    <span>{t("assistant.stopSpeech")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="size-3.5" />
+                    <span>{t("assistant.readAloud")}</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {messages.map((m) => (
@@ -125,16 +238,37 @@ function Assistant() {
                   <Bot className="size-4" aria-hidden />
                 )}
               </span>
-              <p
+              <div
                 className={cn(
-                  "max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                   m.role === "user"
                     ? "rounded-tr-sm bg-primary text-primary-foreground"
                     : "rounded-tl-sm bg-muted text-foreground",
                 )}
               >
-                {m.content}
-              </p>
+                <p className="whitespace-pre-wrap">{m.content}</p>
+                {m.role === "assistant" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleSpeech(m.id, m.content)}
+                    className="mt-2 h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
+                  >
+                    {speakingId === m.id ? (
+                      <>
+                        <VolumeX className="size-3.5 animate-pulse text-destructive" />
+                        <span>{t("assistant.stopSpeech")}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="size-3.5" />
+                        <span>{t("assistant.readAloud")}</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
 
@@ -161,9 +295,12 @@ function Assistant() {
           ))}
         </div>
 
-        {/* Input */}
+        {/* Input Form with Voice Support */}
         <form
-          className="sticky bottom-20 flex items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg md:bottom-4"
+          className={cn(
+            "sticky bottom-20 flex items-center gap-2 rounded-2xl border bg-card p-2 shadow-lg md:bottom-4 transition-all",
+            isListening ? "border-destructive ring-2 ring-destructive/20" : "border-border",
+          )}
           onSubmit={(e) => {
             e.preventDefault();
             send(input);
@@ -172,14 +309,28 @@ function Assistant() {
           <Button type="button" variant="ghost" size="icon" aria-label="Attach image" disabled>
             <Paperclip className="size-4" />
           </Button>
+
           <Input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={t("assistant.placeholder")}
+            placeholder={isListening ? t("assistant.listening") : t("assistant.placeholder")}
             aria-label={t("assistant.placeholder")}
             className="border-0 shadow-none focus-visible:ring-0"
           />
+
+          {/* Voice Input Mic Button */}
+          <Button
+            type="button"
+            variant={isListening ? "destructive" : "outline"}
+            size="icon"
+            onClick={toggleListening}
+            title={isListening ? "Stop listening" : "Voice input"}
+            className={cn("shrink-0", isListening && "animate-pulse")}
+          >
+            {isListening ? <MicOff className="size-4" /> : <Mic className="size-4 text-primary" />}
+          </Button>
+
           <Button type="submit" disabled={thinking || !input.trim()}>
             <Send className="size-4" /> <span className="hidden sm:inline">{t("assistant.send")}</span>
           </Button>
