@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { SeverityBadge, SeverityScale } from "@/components/common/severity";
+import { SeverityBadge } from "@/components/common/severity";
 import { RecommendationCard } from "@/components/common/RecommendationCard";
 import { useFarm } from "@/lib/farm-store";
 import { useI18n } from "@/lib/i18n";
@@ -18,12 +18,12 @@ export const Route = createFileRoute("/crop-diagnosis/result")({
       {
         name: "description",
         content:
-          "Detected disease, AI confidence, severity scale, treatment steps and estimated yield loss for your crop.",
+          "Detected disease, AI confidence, treatment steps and estimated yield loss for your crop.",
       },
       { property: "og:title", content: "Diagnosis Result — AI Farm Companion" },
       {
         property: "og:description",
-        content: "AI crop diagnosis with severity, treatment steps and yield impact.",
+        content: "AI crop diagnosis with treatment steps and yield impact.",
       },
     ],
   }),
@@ -78,12 +78,11 @@ function DiagnosisResult() {
             </div>
           </div>
 
-          <div className="mt-6">
-            <SeverityScale level={diagnosis.severity} />
-            <p className="mt-3 text-sm text-muted-foreground">
+          <div className="mt-4 border-t border-border/60 pt-4">
+            <p className="text-sm font-medium text-foreground flex items-center gap-2">
               {isHealthy
                 ? "✨ Healthy crop condition detected! Continue regular maintenance and monitoring."
-                : `${diagnosis.severity} severity detected. Immediate preventive treatment is recommended.`}
+                : `⚠️ ${diagnosis.severity} severity detected. Immediate preventive treatment is recommended.`}
             </p>
           </div>
         </section>
@@ -181,7 +180,7 @@ function DiagnosisResult() {
                   ["Analyzed", formatDate(diagnosis.created_at)],
                   ["Crop Specimen", diagnosis.crop],
                   ["AI Confidence", `${diagnosis.confidence}%`],
-                  ["Health Severity", diagnosis.severity],
+                  ["Health Status", isHealthy ? "Healthy" : diagnosis.severity],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">{k}</dt>
