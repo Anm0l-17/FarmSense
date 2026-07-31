@@ -1,0 +1,26 @@
+# Python & Virtual environment
+venv/
+backend/venv/
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.coverage
+
+# Database & SQLite
+*.db
+*.sqlite3
+backend/agrisense.db
+
+# Environment variables & secrets
+.env
+backend/.env
+
+# Uploads & temporary files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDEs & System
+.DS_Store
+.vscode/
+.idea/
