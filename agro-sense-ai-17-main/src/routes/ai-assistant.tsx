@@ -70,16 +70,23 @@ function Assistant() {
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
     };
   }, []);
 
-  // Voice Input (Speech-to-Text with explicit mic permission)
+  // Continuous Voice Input (Speech-to-Text)
   async function toggleListening() {
     if (typeof window === "undefined") return;
 
     if (isListening) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch {}
       }
       setIsListening(false);
       return;
@@ -91,39 +98,58 @@ function Assistant() {
     if (!SpeechRecognition) {
       toast.error(
         lang === "hi"
-          ? "ब्राउज़र में वॉइस सर्च सपोर्ट उपलब्ध नहीं है। कृपया गूगल क्रोम का उपयोग करें।"
+          ? "ब्राउज़र में वॉइस सपोर्ट उपलब्ध नहीं है। कृपया गूगल क्रोम का उपयोग करें।"
           : "Speech recognition is not supported in this browser. Please use Chrome or Edge.",
       );
       return;
     }
 
     try {
-      // Request explicit microphone access first
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (micErr) {
+        console.warn("MediaDevices mic permission warning:", micErr);
+      }
 
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
 
       recognition.onstart = () => {
         setIsListening(true);
-        toast.info(lang === "hi" ? "माइक चालू है, बोलें..." : lang === "kn" ? "ಮೈಕ್ ಚಾಲೂ ಇದೆ, ಮಾತನಾಡಿ..." : "Listening... Speak now");
+        toast.info(
+          lang === "hi"
+            ? "🎤 माइक चालू है! बोलना शुरू करें..."
+            : lang === "kn"
+              ? "🎤 ಮೈಕ್ ಚಾಲೂ ಇದೆ! ಮಾತನಾಡಲು ಪ್ರಾರಂಭಿಸಿ..."
+              : "🎤 Microphone active! Start speaking...",
+        );
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        setInput(transcript);
+        let currentTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        if (currentTranscript.trim()) {
+          setInput(currentTranscript);
+        }
       };
 
       recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-        if (event.error !== "no-speech") {
-          toast.error(lang === "hi" ? "आवाज रिकॉर्ड करने में असमर्थ" : "Could not recognize speech. Please try again.");
+        console.warn("Speech recognition event warning:", event.error);
+        if (event.error === "no-speech" || event.error === "aborted") {
+          return;
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setIsListening(false);
+          toast.error(
+            lang === "hi"
+              ? "माइक की अनुमति स्वीकृत नहीं है। कृपया ब्राउज़र में माइक की अनुमति दें।"
+              : "Microphone access blocked. Please allow mic access in your browser.",
+          );
         }
       };
 
@@ -133,13 +159,8 @@ function Assistant() {
 
       recognition.start();
     } catch (e) {
-      console.error("Microphone permission denied:", e);
+      console.error("Speech recognition launch error:", e);
       setIsListening(false);
-      toast.error(
-        lang === "hi"
-          ? "माइक की अनुमति अस्वीकृत की गई। कृपया ब्राउज़र में माइक अनुमति प्रदान करें।"
-          : "Microphone permission denied. Please allow mic access in your browser settings.",
-      );
     }
   }
 
@@ -171,7 +192,9 @@ function Assistant() {
     if (!question || thinking) return;
     setInput("");
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       setIsListening(false);
     }
     setMessages((m) => [
