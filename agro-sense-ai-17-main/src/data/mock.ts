@@ -8,15 +8,7 @@ import type {
   Weather,
 } from "@/types";
 
-export const mockUser: User = {
-  user_id: "u_1",
-  name: "Ramesh Kumar",
-  location: "Bangalore",
-  preferred_language: "en",
-};
-
 export const CROPS = ["Tomato", "Potato", "Onion", "Paddy", "Maize", "Cotton"];
-export const LOCATIONS = ["My Location", "Bangalore", "Mysuru", "Hubballi", "Pune"];
 
 export const CROP_EMOJI: Record<string, string> = {
   Tomato: "🍅",
@@ -25,32 +17,50 @@ export const CROP_EMOJI: Record<string, string> = {
   Paddy: "🌾",
   Maize: "🌽",
   Cotton: "☁️",
+  Wheat: "🌾",
+  Rice: "🌾",
+  Corn: "🌽",
+};
+
+export const LOCATIONS = [
+  "Bangalore",
+  "Mysore",
+  "Kolar",
+  "Mandya",
+  "Belgaum",
+  "Dharwad",
+  "Hubli",
+];
+
+export const mockUser: User = {
+  user_id: "u_demo",
+  name: "Raju Patil",
+  location: "Bangalore",
+  preferred_language: "en",
 };
 
 export const mockDiagnosis: Diagnosis = {
   diagnosis_id: "d_1001",
   user_id: "u_1",
   crop: "Tomato",
-  disease: "Early Blight",
-  confidence: 94,
-  severity: "Moderate",
+  disease: "Healthy & Flourishing",
+  confidence: 96,
+  severity: "Low",
   image_url: "",
-  yield_loss: 15,
+  yield_loss: 0,
   description:
-    "Early Blight is a fungal disease that commonly affects tomato leaves. If it spreads, it can reduce plant health and yield.",
+    "Great news! Your tomato crop is healthy with clean green foliage and robust growth.",
   symptoms: [
-    "Brown spots on leaves",
-    "Circular lesions",
-    "Yellowing around affected areas",
+    "Clean green leaves",
+    "Sturdy main stem",
+    "Normal leaf expansion",
   ],
   actions: [
-    "Remove heavily infected leaves.",
-    "Avoid overhead watering.",
-    "Improve airflow around plants.",
-    "Monitor nearby plants.",
-    "Follow locally recommended treatment guidance.",
+    "Maintain regular drip irrigation.",
+    "Apply balanced N-P-K nutrient doses.",
+    "Inspect lower leaves weekly.",
   ],
-  revenue_impact: [6000, 9000],
+  revenue_impact: [0, 0],
   created_at: new Date().toISOString(),
 };
 
@@ -61,28 +71,28 @@ export const mockHistory: Diagnosis[] = [
     diagnosis_id: "d_1000",
     crop: "Potato",
     disease: "Late Blight",
-    confidence: 91,
+    confidence: 93,
     severity: "High",
     yield_loss: 28,
     description:
-      "Late Blight is a fast-spreading fungal disease that may severely damage potato foliage and tubers.",
-    symptoms: ["Dark water-soaked patches", "White mould on leaf underside", "Rapid leaf collapse"],
+      "Late Blight is a fast-spreading fungal disease that may damage potato foliage and tubers.",
+    symptoms: ["Dark water-soaked patches", "White mould on leaf underside"],
     revenue_impact: [11000, 16000],
-    created_at: new Date(Date.now() - 5 * 864e5).toISOString(),
+    created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
   },
   {
     ...mockDiagnosis,
     diagnosis_id: "d_0999",
     crop: "Onion",
-    disease: "Purple Blotch",
-    confidence: 88,
+    disease: "Healthy & Flourishing",
+    confidence: 96,
     severity: "Low",
-    yield_loss: 6,
+    yield_loss: 0,
     description:
-      "Purple Blotch may appear during humid conditions and usually stays manageable with monitoring.",
-    symptoms: ["Small purple lesions", "Leaf tip dieback"],
-    revenue_impact: [1500, 2600],
-    created_at: new Date(Date.now() - 12 * 864e5).toISOString(),
+      "Clean upright green onion leaves with healthy neck development.",
+    symptoms: ["Upright green leaves", "No purple blotches"],
+    revenue_impact: [0, 0],
+    created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
   },
 ];
 
@@ -207,7 +217,7 @@ export const mockCommunityPosts: CommunityPost[] = [
         post_id: "p1",
         author: "AI Farm Assistant",
         answer:
-          "Based on available information, black or brown spots on tomato leaves may indicate Early Blight, a common fungal disease. Consider removing heavily infected leaves, avoiding overhead watering and improving airflow. If the spread continues, consider consulting a local agricultural expert.",
+          "Based on available information, black or brown spots on tomato leaves may indicate Early Blight, a common fungal disease. Consider removing heavily infected leaves, avoiding overhead watering and improving airflow.",
         is_ai_generated: true,
         created_at: new Date(Date.now() - 1.8 * 36e5).toISOString(),
         like_count: 9,
@@ -239,7 +249,7 @@ export const mockCommunityPosts: CommunityPost[] = [
         post_id: "p2",
         author: "AI Farm Assistant",
         answer:
-          "Based on available market information, short-term price recovery is possible. If your storage conditions are good and crop risk is low, holding part of the stock may be worth considering.",
+          "Based on available market information, short-term price recovery is possible. If your storage conditions are good, holding part of the stock may be worth considering.",
         is_ai_generated: true,
         created_at: new Date(Date.now() - 6.5 * 36e5).toISOString(),
         like_count: 4,
