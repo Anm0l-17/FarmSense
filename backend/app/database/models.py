@@ -1,12 +1,15 @@
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class User(Base):
     __tablename__ = "users"
@@ -17,7 +20,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     location = Column(String(100), nullable=False, default="Bangalore")
     preferred_language = Column(String(10), nullable=False, default="en")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     diagnoses = relationship("CropDiagnosis", back_populates="user")
     community_posts = relationship("CommunityPost", back_populates="user")
@@ -38,7 +41,7 @@ class CropDiagnosis(Base):
     symptoms_json = Column(Text, nullable=True)
     actions_json = Column(Text, nullable=True)
     revenue_impact_json = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     user = relationship("User", back_populates="diagnoses")
     recommendations = relationship("Recommendation", back_populates="diagnosis")
@@ -66,7 +69,7 @@ class Recommendation(Base):
     yield_loss = Column(Float, nullable=False)
     decision = Column(String(20), nullable=False)  # SELL, HOLD, SELL_PARTIALLY
     reason = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     diagnosis = relationship("CropDiagnosis", back_populates="recommendations")
 
@@ -78,7 +81,7 @@ class MarketPrice(Base):
     market = Column(String(100), nullable=False, default="Local Mandi")
     location = Column(String(100), nullable=False, default="Bangalore")
     price = Column(Float, nullable=False)
-    date = Column(DateTime, nullable=False, index=True)
+    date = Column(DateTime(timezone=True), nullable=False, index=True)
 
 class WeatherCache(Base):
     __tablename__ = "weather_cache"
@@ -89,7 +92,7 @@ class WeatherCache(Base):
     humidity = Column(Integer, nullable=False)
     rain_probability = Column(Float, nullable=False)
     data_json = Column(Text, nullable=True)
-    fetched_at = Column(DateTime, default=datetime.utcnow)
+    fetched_at = Column(DateTime(timezone=True), default=utc_now)
 
 class CommunityPost(Base):
     __tablename__ = "community_posts"
@@ -98,7 +101,7 @@ class CommunityPost(Base):
     user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False)
     crop = Column(String(50), nullable=False)
     question = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     user = relationship("User", back_populates="community_posts")
     answers = relationship("CommunityAnswer", back_populates="post")
@@ -108,10 +111,10 @@ class CommunityAnswer(Base):
 
     answer_id = Column(String(36), primary_key=True, default=generate_uuid)
     post_id = Column(String(36), ForeignKey("community_posts.post_id"), nullable=False)
-    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True)  # Null if AI
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True)
     answer = Column(Text, nullable=False)
     is_ai_generated = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     post = relationship("CommunityPost", back_populates="answers")
     user = relationship("User", back_populates="community_answers")
