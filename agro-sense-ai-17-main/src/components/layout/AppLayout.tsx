@@ -11,6 +11,8 @@ import {
   Leaf,
   Menu,
   MoreHorizontal,
+  CheckCheck,
+  Trash2,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,10 +26,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { cn } from "@/lib/utils";
 import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { useFarm } from "@/lib/farm-store";
-import { mockNotifications } from "@/data/mock";
 import { DEMO_MODE } from "@/services/api";
 import type { LanguageCode } from "@/types";
 
@@ -68,9 +70,18 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarInner({ onNavigate, onOpenAuth }: { onNavigate?: () => void; onOpenAuth?: () => void }) {
   const { t } = useI18n();
   const { user } = useFarm();
+  const initials = user.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "AP";
+
   return (
     <div className="flex h-full flex-col gap-4 py-5">
       <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5 px-5">
@@ -96,15 +107,18 @@ function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
           <Settings className="size-4.5" aria-hidden />
           {t("nav.settings")}
         </Link>
-        <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-accent/50 px-3 py-2.5">
+        <button
+          onClick={onOpenAuth}
+          className="flex w-full items-center gap-3 rounded-xl border border-sidebar-border bg-accent/50 px-3 py-2.5 text-left transition-colors hover:bg-accent"
+        >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-primary text-xs text-primary-foreground">RK</AvatarFallback>
+            <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">{initials}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.location}</p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -137,28 +151,56 @@ function LanguageSelect() {
 
 function NotificationDropdown() {
   const { t } = useI18n();
+  const { notifications, markNotificationAsRead, clearNotifications } = useFarm();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon" aria-label={t("common.notifications")} className="relative">
           <Bell className="size-4" />
-          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-            {mockNotifications.length}
-          </span>
+          {notifications.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {notifications.length}
+            </span>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>{t("common.notifications")}</DropdownMenuLabel>
+        <div className="flex items-center justify-between px-3 py-2">
+          <DropdownMenuLabel className="p-0 font-bold">{t("common.notifications")}</DropdownMenuLabel>
+          {notifications.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearNotifications}
+              className="h-auto p-1 text-xs text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="size-3 mr-1" /> Clear all
+            </Button>
+          )}
+        </div>
         <DropdownMenuSeparator />
-        {mockNotifications.map((n) => (
-          <DropdownMenuItem key={n.id} className="flex-col items-start gap-0.5 py-2.5">
-            <span className="text-sm font-semibold">
-              {n.icon} {n.title}
-            </span>
-            <span className="text-xs text-muted-foreground">{n.body}</span>
-            <span className="text-[11px] text-muted-foreground/70">{n.time}</span>
-          </DropdownMenuItem>
-        ))}
+
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">
+            <CheckCheck className="mx-auto size-6 mb-1 text-success" />
+            No new notifications. You're all caught up!
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <DropdownMenuItem
+              key={n.id}
+              onClick={() => markNotificationAsRead(n.id)}
+              className="flex-col items-start gap-0.5 py-2.5 cursor-pointer hover:bg-accent"
+            >
+              <span className="text-sm font-semibold">
+                {n.icon} {n.title}
+              </span>
+              <span className="text-xs text-muted-foreground">{n.body}</span>
+              <span className="text-[11px] text-muted-foreground/70">{n.time}</span>
+            </DropdownMenuItem>
+          ))
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -225,12 +267,23 @@ export function AppLayout({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const { t } = useI18n();
+  const { user } = useFarm();
+
+  const initials = user.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "AP";
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-        <SidebarInner />
+        <SidebarInner onOpenAuth={() => setAuthOpen(true)} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -243,7 +296,7 @@ export function AppLayout({
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
               <SheetTitle className="sr-only">{t("app.name")}</SheetTitle>
-              <SidebarInner onNavigate={() => setOpen(false)} />
+              <SidebarInner onNavigate={() => setOpen(false)} onOpenAuth={() => setAuthOpen(true)} />
             </SheetContent>
           </Sheet>
 
@@ -254,22 +307,24 @@ export function AppLayout({
             )}
           </div>
 
-          {DEMO_MODE && (
-            <span className="hidden rounded-full border border-border bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground lg:inline">
-              {t("common.demoMode")}
-            </span>
-          )}
           <LanguageSelect />
           <NotificationDropdown />
-          <Avatar className="size-9">
-            <AvatarFallback className="bg-primary text-xs text-primary-foreground">RK</AvatarFallback>
-          </Avatar>
+          <button
+            onClick={() => setAuthOpen(true)}
+            className="rounded-full transition-transform hover:scale-105"
+            title="Click to Sign In / Edit Profile"
+          >
+            <Avatar className="size-9">
+              <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">{initials}</AvatarFallback>
+            </Avatar>
+          </button>
         </header>
 
         <main className="flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10">{children}</main>
       </div>
 
       <MobileBottomNav />
+      <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }

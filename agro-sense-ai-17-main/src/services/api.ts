@@ -7,6 +7,7 @@ import {
   mockDiagnosis,
   mockHistory,
   mockNotifications,
+  mockUser,
   mockWeather,
 } from "@/data/mock";
 import type {
@@ -21,6 +22,7 @@ import type {
   Recommendation,
   RiskLevel,
   Severity,
+  User,
   Weather,
 } from "@/types";
 
@@ -42,7 +44,7 @@ async function getAuthToken(): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: "Farmer User",
+        name: "Raju Patil",
         phone: `99${Math.floor(10000000 + Math.random() * 90000000)}`,
         password: "agrisense_demo_pass",
         location: "Bangalore",
@@ -65,6 +67,106 @@ async function getAuthToken(): Promise<string> {
 async function authHeaders(): Promise<HeadersInit> {
   const token = await getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ---------------------------------------------------------------- auth & profile
+export async function loginUser(phone: string, password: str): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Login failed" }));
+    throw new Error(err.detail || "Invalid credentials");
+  }
+  const data = await res.json();
+  localStorage.setItem(TOKEN_KEY, data.token);
+  return {
+    user_id: data.user_id,
+    name: data.name,
+    location: data.location ?? "Bangalore",
+    preferred_language: data.preferred_language ?? "en",
+  };
+}
+
+export async function registerUser(payload: {
+  name: string;
+  phone: string;
+  password: string;
+  location?: string;
+  preferred_language?: LanguageCode;
+}): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Registration failed" }));
+    throw new Error(err.detail || "Registration failed");
+  }
+  const data = await res.json();
+  localStorage.setItem(TOKEN_KEY, data.token);
+  return {
+    user_id: data.user_id,
+    name: data.name,
+    location: data.location ?? "Bangalore",
+    preferred_language: data.preferred_language ?? "en",
+  };
+}
+
+export async function getUserProfile(): Promise<User> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/auth/me`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        user_id: data.user_id,
+        name: data.name,
+        location: data.location,
+        preferred_language: data.preferred_language,
+      };
+    }
+  } catch (e) {
+    console.warn("Fetch profile failed.", e);
+  }
+  return mockUser;
+}
+
+export async function updateUserProfile(payload: {
+  name?: string;
+  phone?: string;
+  location?: string;
+  preferred_language?: LanguageCode;
+  password?: string;
+}): Promise<User> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        user_id: data.user_id,
+        name: data.name,
+        location: data.location,
+        preferred_language: data.preferred_language,
+      };
+    }
+  } catch (e) {
+    console.warn("Update profile failed.", e);
+  }
+  return {
+    user_id: "u_demo",
+    name: payload.name ?? "Raju Patil",
+    location: payload.location ?? "Bangalore",
+    preferred_language: payload.preferred_language ?? "en",
+  };
 }
 
 // ---------------------------------------------------------------- health

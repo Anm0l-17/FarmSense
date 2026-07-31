@@ -13,6 +13,13 @@ class UserLogin(BaseModel):
     phone: str
     password: str
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    preferred_language: Optional[str] = None
+    password: Optional[str] = None
+
 class TokenResponse(BaseModel):
     user_id: str
     name: str

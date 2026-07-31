@@ -39,7 +39,7 @@ function History() {
 
   useEffect(() => {
     getDiagnosisHistory()
-      .then(() => setItems(history))
+      .then((data) => setItems(data && data.length > 0 ? data : history))
       .catch(() => setItems(history))
       .finally(() => setLoading(false));
   }, [history]);

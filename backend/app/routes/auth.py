@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.database.models import User
-from app.schemas.auth import UserRegister, UserLogin, TokenResponse, UserResponse
+from app.schemas.auth import UserRegister, UserLogin, UserUpdate, TokenResponse, UserResponse
 from app.utils.security import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -58,4 +58,28 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.put("/me", response_model=UserResponse)
+def update_profile(
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if user_update.name is not None:
+        current_user.name = user_update.name
+    if user_update.location is not None:
+        current_user.location = user_update.location
+    if user_update.preferred_language is not None:
+        current_user.preferred_language = user_update.preferred_language
+    if user_update.phone is not None and user_update.phone != current_user.phone:
+        existing = db.query(User).filter(User.phone == user_update.phone).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone number already in use")
+        current_user.phone = user_update.phone
+    if user_update.password is not None and user_update.password.strip():
+        current_user.password_hash = hash_password(user_update.password)
+        
+    db.commit()
+    db.refresh(current_user)
     return current_user

@@ -7,9 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { mockDiagnosis, mockHistory, mockMarket, mockUser, mockWeather } from "@/data/mock";
-import { computeDecision, getMarketPrices, getWeather } from "@/services/api";
+import { mockDiagnosis, mockHistory, mockMarket, mockNotifications, mockUser, mockWeather } from "@/data/mock";
+import { computeDecision, getDiagnosisHistory, getMarketPrices, getUserProfile, getWeather, updateUserProfile } from "@/services/api";
 import type {
+  AppNotification,
   Diagnosis,
   FarmContextPayload,
   MarketData,
@@ -21,6 +22,7 @@ import type {
 interface FarmStore {
   user: User;
   setUser: (u: User) => void;
+  updateUser: (u: Partial<User>) => Promise<void>;
   diagnosis: Diagnosis;
   setDiagnosis: (d: Diagnosis) => void;
   history: Diagnosis[];
@@ -34,6 +36,9 @@ interface FarmStore {
   loadingConditions: boolean;
   recommendation: Recommendation;
   aiContext: FarmContextPayload;
+  notifications: AppNotification[];
+  markNotificationAsRead: (id: string) => void;
+  clearNotifications: () => void;
 }
 
 const FarmCtx = createContext<FarmStore | null>(null);
@@ -47,6 +52,30 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [crop, setCrop] = useState("Tomato");
   const [location, setLocation] = useState("Bangalore");
   const [loadingConditions, setLoadingConditions] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
+
+  // Sync profile & diagnosis history from API
+  useEffect(() => {
+    getUserProfile().then((u) => {
+      if (u && u.name) {
+        setUser(u);
+        if (u.location) setLocation(u.location);
+      }
+    }).catch(() => {});
+
+    getDiagnosisHistory().then((h) => {
+      if (h && h.length > 0) {
+        setHistory(h);
+        setDiagnosis(h[0]);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const updateUser = useCallback(async (partial: Partial<User>) => {
+    const updated = await updateUserProfile(partial);
+    setUser(updated);
+    if (updated.location) setLocation(updated.location);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -57,9 +86,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         setWeather(w);
         setMarket(m);
       })
-      .catch(() => {
-        /* demo-safe: keep existing mock values */
-      })
+      .catch(() => {})
       .finally(() => active && setLoadingConditions(false));
     return () => {
       active = false;
@@ -71,6 +98,14 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     setHistory((prev) =>
       prev.some((p) => p.diagnosis_id === d.diagnosis_id) ? prev : [d, ...prev],
     );
+  }, []);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
   }, []);
 
   const recommendation = useMemo<Recommendation>(() => {
@@ -115,6 +150,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const value: FarmStore = {
     user,
     setUser,
+    updateUser,
     diagnosis,
     setDiagnosis,
     history,
@@ -128,6 +164,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     loadingConditions,
     recommendation,
     aiContext,
+    notifications,
+    markNotificationAsRead,
+    clearNotifications,
   };
 
   return <FarmCtx.Provider value={value}>{children}</FarmCtx.Provider>;

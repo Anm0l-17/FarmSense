@@ -61,24 +61,53 @@ def test_auth_flow():
     assert login.status_code == 200
     assert login.json()["name"] == "Rajesh Patel"
 
-def test_crop_diagnosis(auth_headers):
-    img = Image.new("RGB", (224, 224), color="green")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="JPEG")
-    img_bytes = img_byte_arr.getvalue()
+def test_profile_update(auth_headers):
+    get_res = client.get("/auth/me", headers=auth_headers)
+    assert get_res.status_code == 200
+    
+    put_res = client.put("/auth/me", headers=auth_headers, json={
+        "name": "Updated Farmer Name",
+        "location": "Mandya",
+        "preferred_language": "kn"
+    })
+    assert put_res.status_code == 200
+    data = put_res.json()
+    assert data["name"] == "Updated Farmer Name"
+    assert data["location"] == "Mandya"
+    assert data["preferred_language"] == "kn"
 
-    response = client.post(
+def test_crop_diagnosis(auth_headers):
+    # Test green image (healthy)
+    img_green = Image.new("RGB", (224, 224), color=(30, 180, 50))
+    buf_green = io.BytesIO()
+    img_green.save(buf_green, format="JPEG")
+
+    res_green = client.post(
         "/crop/diagnose",
         headers=auth_headers,
-        files={"image": ("test_leaf.jpg", img_bytes, "image/jpeg")},
+        files={"image": ("healthy_leaf.jpg", buf_green.getvalue(), "image/jpeg")},
         data={"crop_hint": "tomato"}
     )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["crop"] == "Tomato"
-    assert "disease" in data
-    assert "confidence" in data
-    assert "diagnosis_id" in data
+    assert res_green.status_code == 201
+    data_green = res_green.json()
+    assert data_green["crop"] == "Tomato"
+    assert "Healthy" in data_green["disease"]
+
+    # Test dark rot image (late blight)
+    img_dark = Image.new("RGB", (224, 224), color=(30, 20, 15))
+    buf_dark = io.BytesIO()
+    img_dark.save(buf_dark, format="JPEG")
+
+    res_dark = client.post(
+        "/crop/diagnose",
+        headers=auth_headers,
+        files={"image": ("rotten_leaf.jpg", buf_dark.getvalue(), "image/jpeg")},
+        data={"crop_hint": "potato"}
+    )
+    assert res_dark.status_code == 201
+    data_dark = res_dark.json()
+    assert data_dark["crop"] == "Potato"
+    assert "Blight" in data_dark["disease"] or "Purple" in data_dark["disease"]
 
 def test_weather_endpoint(auth_headers):
     res = client.get("/weather?location=Bangalore", headers=auth_headers)
@@ -157,8 +186,6 @@ def test_community_qa(auth_headers):
     assert "post_id" in post_data
     assert post_data["ai_answer"]["is_ai_generated"] is True
 
-    # List pre-seeded and new posts
     list_res = client.get("/community/posts", headers=auth_headers)
     assert list_res.status_code == 200
-    # Should include 5 preseeded posts + 1 new post = 6 total
     assert list_res.json()["total"] >= 6
