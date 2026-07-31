@@ -24,7 +24,7 @@ else:
             print(f"✅ OpenWeatherMap API Connected Successfully!")
             print(f"   City: {data['name']}, Temp: {round(data['main']['temp']-273.15, 1)}°C, Weather: {data['weather'][0]['description']}")
         else:
-            print(f"⚠️ OpenWeatherMap API returned status code {res.status_code}: {res.text}")
+            print(f"⚠️ OpenWeatherMap API status: {res.status_code}")
     except Exception as e:
         print(f"❌ OpenWeatherMap API error: {e}")
 
@@ -36,10 +36,10 @@ else:
     try:
         import google.generativeai as genai
         genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content("Say hello in one short sentence for AgriSense testing.")
         if response and response.text:
-            print(f"✅ Google Gemini API Connected Successfully!")
+            print(f"✅ Google Gemini API Connected Successfully! (Model: gemini-2.0-flash)")
             print(f"   Gemini Response: '{response.text.strip()}'")
         else:
             print("⚠️ Gemini API returned empty response.")
@@ -64,7 +64,8 @@ else:
             print(f"✅ OpenAI API Connected Successfully!")
             print(f"   OpenAI Response: '{text}'")
         else:
-            print(f"⚠️ OpenAI API returned status code {res.status_code}: {res.text}")
+            err_detail = res.json().get("error", {}).get("code", res.status_code)
+            print(f"⚠️ OpenAI API returned status code {res.status_code} ({err_detail}). Will be used as backup failover.")
     except Exception as e:
         print(f"❌ OpenAI API error: {e}")
 

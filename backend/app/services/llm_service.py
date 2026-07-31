@@ -10,6 +10,8 @@ LANGUAGE_NAMES = {
     "kn": "Kannada"
 }
 
+GEMINI_MODEL_NAMES = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash"]
+
 def generate_ai_response(
     message: str,
     diagnosis_id: str = None,
@@ -31,12 +33,11 @@ def generate_ai_response(
     gemini_key = getattr(settings, "GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
     openai_key = os.getenv("OPENAI_API_KEY", "")
 
-    # 1. Try Gemini API first if key provided
+    # 1. Primary: Google Gemini API
     if gemini_key and "your_" not in gemini_key:
         try:
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
             
             system_prompt = (
                 f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. "
@@ -45,14 +46,21 @@ def generate_ai_response(
                 f"{context_str}\n\n"
                 f"Farmer Question: {message}"
             )
-            
-            response = model.generate_content(system_prompt)
-            if response and response.text:
-                return response.text.strip()
-        except Exception as e:
-            print(f"Gemini API error ({e}). Trying OpenAI or fallback.")
 
-    # 2. Try OpenAI API if OpenAI key provided
+            # Try supported model names
+            for model_name in GEMINI_MODEL_NAMES:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(system_prompt)
+                    if response and response.text:
+                        return response.text.strip()
+                except Exception:
+                    continue
+
+        except Exception as e:
+            print(f"Gemini API error ({e}). Attempting failover to OpenAI.")
+
+    # 2. Secondary Failover: OpenAI API (GPT-4o-mini)
     if openai_key and "your_" not in openai_key:
         try:
             headers = {
@@ -80,13 +88,13 @@ def generate_ai_response(
             else:
                 print(f"OpenAI API status {res.status_code}: {res.text}")
         except Exception as e:
-            print(f"OpenAI API error ({e}). Using offline fallback engine.")
+            print(f"OpenAI API failover error ({e}). Using intelligent offline response engine.")
 
-    # 3. Offline intelligent fallback responses by language
+    # 3. Offline Intelligent Fallback Response
     if language == "hi":
         return (
             f"नमस्कार! फसल ({context_str or 'फसल'}) के लिए कृषि सलाह:\n"
-            f"1. प्रभावित पत्तियों को तुरंत काटकर दूर कर दें।\n"
+            f"1. प्रभावित पत्तियों को तुरंत बदलकर हटा दें।\n"
             f"2. कॉपर ऑक्सीक्लोराइड या मैंकोज़ेब (Mancozeb) फफूंदनाशक का छिड़काव करें।\n"
             f"3. बाज़ार भाव का अनुमान देखकर सही समय पर बिक्री करें।"
         )
