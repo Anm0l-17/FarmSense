@@ -12,6 +12,13 @@ LANGUAGE_NAMES = {
 
 GEMINI_MODEL_NAMES = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash"]
 
+def clean_markdown_formatting(text: str) -> str:
+    """Strip out markdown bold asterisks, headers, horizontal rules and extra symbols for pure plain text."""
+    if not text:
+        return ""
+    cleaned = text.replace("**", "").replace("###", "").replace("##", "").replace("#", "").replace("---", "")
+    return cleaned.strip()
+
 def generate_ai_response(
     message: str,
     diagnosis_id: str = None,
@@ -33,6 +40,13 @@ def generate_ai_response(
     openai_key = getattr(settings, "OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
     gemini_key = getattr(settings, "GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
+    system_instruction = (
+        f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. "
+        f"Explain crop health diagnosis, disease treatments, and market advice in clear, encouraging, practical terms. "
+        f"STRICT RULE: Do NOT use markdown bold asterisks (**), headers (###), or divider lines (---). "
+        f"Provide pure plain text without bold syntax. Always respond entirely in {lang_name}."
+    )
+
     # 1. Primary: OpenAI API (GPT-4o-mini)
     if openai_key and "your_" not in openai_key:
         try:
@@ -43,21 +57,16 @@ def generate_ai_response(
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. Explain crop health diagnosis, disease treatments, and market advice in clear, encouraging, practical terms. Always respond entirely in {lang_name}."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"{context_str}\n\nFarmer Question: {message}"
-                    }
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": f"{context_str}\n\nFarmer Question: {message}"}
                 ],
                 "max_tokens": 500
             }
             res = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json()
-                return data["choices"][0]["message"]["content"].strip()
+                raw_txt = data["choices"][0]["message"]["content"].strip()
+                return clean_markdown_formatting(raw_txt)
             else:
                 print(f"OpenAI API status {res.status_code}: {res.text}. Attempting failover to Gemini.")
         except Exception as e:
@@ -69,21 +78,15 @@ def generate_ai_response(
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
             
-            system_prompt = (
-                f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. "
-                f"Explain crop health diagnosis, disease treatments, and market advice in clear, encouraging, practical terms. "
-                f"Always respond entirely in {lang_name}.\n"
-                f"{context_str}\n\n"
-                f"Farmer Question: {message}"
-            )
+            prompt = f"{system_instruction}\n{context_str}\n\nFarmer Question: {message}"
 
             # Try supported model names
             for model_name in GEMINI_MODEL_NAMES:
                 try:
                     model = genai.GenerativeModel(model_name)
-                    response = model.generate_content(system_prompt)
+                    response = model.generate_content(prompt)
                     if response and response.text:
-                        return response.text.strip()
+                        return clean_markdown_formatting(response.text)
                 except Exception:
                     continue
 
@@ -92,23 +95,23 @@ def generate_ai_response(
 
     # 3. Offline Intelligent Fallback Response
     if language == "hi":
-        return (
-            f"नमस्कार! फसल ({context_str or 'फसल'}) के लिए कृषि सलाह:\n"
-            f"1. प्रभावित पत्तियों को तुरंत बदलकर हटा दें।\n"
-            f"2. कॉपर ऑक्सीक्लोराइड या मैंकोज़ेब (Mancozeb) फफूंदनाशक का छिड़काव करें।\n"
-            f"3. बाज़ार भाव का अनुमान देखकर सही समय पर बिक्री करें।"
+        return clean_markdown_formatting(
+            f"नमस्कार! आपकी फसल के लिए जरूरी कृषि सलाह:\n"
+            f"1. बीमारी से प्रभावित पत्तियों को तुरंत काटकर खेत से दूर ले जाकर नष्ट करें।\n"
+            f"2. सही फफूंदनाशक जैसे कॉपर ऑक्सीक्लोराइड या मैंकोज़ेब का छिड़काव करें।\n"
+            f"3. मंडी के दाम और मौसम की चेतावनी देखकर सही समय पर बिक्री का निर्णय लें।"
         )
     elif language == "kn":
-        return (
-            f"ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಬೆಳೆಯ ({context_str or 'ಬೆಳೆ'}) ಆರೈಕೆಗಾಗಿ ಸಲಹೆಗಳು:\n"
-            f"1. ರೋಗಪೀಡಿತ ಎಲೆಗಳನ್ನು ತೆಗೆದುಹಾಕಿ.\n"
+        return clean_markdown_formatting(
+            f"ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಬೆಳೆಯ ಆರೈಕೆಗಾಗಿ ಕೃಷಿ ಸಲಹೆಗಳು:\n"
+            f"1. ರೋಗಪೀಡಿತ ಎಲೆಗಳನ್ನು ತೆಗೆದುಹಾಕಿ ಕಾಪಾಡಿ.\n"
             f"2. ಸೂಕ್ತವಾದ ಶಿಲೀಂಧ್ರನಾಶಕವನ್ನು ಸಿಂಪಡಿಸಿ.\n"
             f"3. ಮಾರುಕಟ್ಟೆ ದರವನ್ನು ಗಮನಿಸಿ ಮಾರಾಟ ಮಾಡಿ."
         )
     else:
-        return (
-            f"Hello! Here is practical advice for your crop {context_str or ''}:\n"
-            f"1. **Remedy**: Prune and safely discard heavily infected leaves to stop disease spread.\n"
-            f"2. **Prevention**: Ensure proper air ventilation between plants and avoid over-watering the foliage.\n"
-            f"3. **Market Strategy**: Track market trends carefully and consider holding or selling based on weather risks."
+        return clean_markdown_formatting(
+            f"Hello! Here is practical advice for your crop:\n"
+            f"1. Prune and safely discard heavily infected leaves to stop disease spread.\n"
+            f"2. Ensure proper air ventilation between plants and avoid over-watering the foliage.\n"
+            f"3. Track market trends carefully and consider holding or selling based on weather risks."
         )

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Bot, Mic, MicOff, Paperclip, Send, Sparkles, User, Volume2, VolumeX } from "lucide-react";
+import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,17 @@ export const Route = createFileRoute("/ai-assistant")({
   }),
   component: Assistant,
 });
+
+function cleanText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/###/g, "")
+    .replace(/##/g, "")
+    .replace(/#/g, "")
+    .replace(/---/g, "")
+    .replace(/^\s*\*\s+/gm, "• ");
+}
 
 function Assistant() {
   const { t, lang } = useI18n();
@@ -61,24 +73,34 @@ function Assistant() {
     };
   }, []);
 
-  // Voice Input (Speech-to-Text)
-  function toggleListening() {
+  // Voice Input (Speech-to-Text with explicit mic permission)
+  async function toggleListening() {
     if (typeof window === "undefined") return;
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
-      return;
-    }
 
     if (isListening) {
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsListening(false);
       return;
     }
 
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error(
+        lang === "hi"
+          ? "ब्राउज़र में वॉइस सर्च सपोर्ट उपलब्ध नहीं है। कृपया गूगल क्रोम का उपयोग करें।"
+          : "Speech recognition is not supported in this browser. Please use Chrome or Edge.",
+      );
+      return;
+    }
+
     try {
+      // Request explicit microphone access first
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
       recognition.continuous = false;
@@ -87,6 +109,7 @@ function Assistant() {
 
       recognition.onstart = () => {
         setIsListening(true);
+        toast.info(lang === "hi" ? "माइक चालू है, बोलें..." : lang === "kn" ? "ಮೈಕ್ ಚಾಲೂ ಇದೆ, ಮಾತನಾಡಿ..." : "Listening... Speak now");
       };
 
       recognition.onresult = (event: any) => {
@@ -99,6 +122,9 @@ function Assistant() {
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
         setIsListening(false);
+        if (event.error !== "no-speech") {
+          toast.error(lang === "hi" ? "आवाज रिकॉर्ड करने में असमर्थ" : "Could not recognize speech. Please try again.");
+        }
       };
 
       recognition.onend = () => {
@@ -107,8 +133,13 @@ function Assistant() {
 
       recognition.start();
     } catch (e) {
-      console.error("Speech recognition failed to start:", e);
+      console.error("Microphone permission denied:", e);
       setIsListening(false);
+      toast.error(
+        lang === "hi"
+          ? "माइक की अनुमति अस्वीकृत की गई। कृपया ब्राउज़र में माइक अनुमति प्रदान करें।"
+          : "Microphone permission denied. Please allow mic access in your browser settings.",
+      );
     }
   }
 
@@ -123,8 +154,10 @@ function Assistant() {
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const cleaned = cleanText(text);
+    const utterance = new SpeechSynthesisUtterance(cleaned);
     utterance.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
+    utterance.rate = 0.95;
 
     utterance.onend = () => setSpeakingId(null);
     utterance.onerror = () => setSpeakingId(null);
@@ -137,8 +170,8 @@ function Assistant() {
     const question = text.trim();
     if (!question || thinking) return;
     setInput("");
-    if (isListening) {
-      recognitionRef.current?.stop();
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
       setIsListening(false);
     }
     setMessages((m) => [
@@ -148,7 +181,7 @@ function Assistant() {
     setThinking(true);
     try {
       const reply = await askChatbot(question, aiContext, lang);
-      setMessages((m) => [...m, reply]);
+      setMessages((m) => [...m, { ...reply, content: cleanText(reply.content) }]);
     } catch {
       setMessages((m) => [
         ...m,
@@ -195,27 +228,27 @@ function Assistant() {
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Bot className="size-4" aria-hidden />
             </span>
-            <div className="group relative max-w-[85%] rounded-2xl rounded-tl-sm bg-accent px-4 py-3 text-sm text-accent-foreground">
-              <p>{t("assistant.welcome")}</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => toggleSpeech("welcome", t("assistant.welcome"))}
-                className="mt-2 h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
-              >
-                {speakingId === "welcome" ? (
-                  <>
-                    <VolumeX className="size-3.5 animate-pulse text-destructive" />
-                    <span>{t("assistant.stopSpeech")}</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="size-3.5" />
-                    <span>{t("assistant.readAloud")}</span>
-                  </>
-                )}
-              </Button>
+            <div className="flex flex-col gap-2 max-w-[85%] rounded-2xl rounded-tl-sm bg-accent px-4 py-3 text-sm text-accent-foreground">
+              <p className="whitespace-pre-wrap">{cleanText(t("assistant.welcome"))}</p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => toggleSpeech("welcome", t("assistant.welcome"))}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-all hover:bg-primary/20 active:scale-95"
+                >
+                  {speakingId === "welcome" ? (
+                    <>
+                      <VolumeX className="size-3.5 animate-pulse text-destructive" />
+                      <span>{t("assistant.stopSpeech")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="size-3.5" />
+                      <span>{t("assistant.readAloud")}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -240,33 +273,33 @@ function Assistant() {
               </span>
               <div
                 className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  "flex flex-col gap-2 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                   m.role === "user"
                     ? "rounded-tr-sm bg-primary text-primary-foreground"
                     : "rounded-tl-sm bg-muted text-foreground",
                 )}
               >
-                <p className="whitespace-pre-wrap">{m.content}</p>
+                <p className="whitespace-pre-wrap">{cleanText(m.content)}</p>
                 {m.role === "assistant" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleSpeech(m.id, m.content)}
-                    className="mt-2 h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
-                  >
-                    {speakingId === m.id ? (
-                      <>
-                        <VolumeX className="size-3.5 animate-pulse text-destructive" />
-                        <span>{t("assistant.stopSpeech")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="size-3.5" />
-                        <span>{t("assistant.readAloud")}</span>
-                      </>
-                    )}
-                  </Button>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleSpeech(m.id, m.content)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-all hover:bg-primary/20 active:scale-95"
+                    >
+                      {speakingId === m.id ? (
+                        <>
+                          <VolumeX className="size-3.5 animate-pulse text-destructive" />
+                          <span>{t("assistant.stopSpeech")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="size-3.5" />
+                          <span>{t("assistant.readAloud")}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -295,11 +328,11 @@ function Assistant() {
           ))}
         </div>
 
-        {/* Input Form with Voice Support */}
+        {/* Input Form with Enhanced Voice Support */}
         <form
           className={cn(
             "sticky bottom-20 flex items-center gap-2 rounded-2xl border bg-card p-2 shadow-lg md:bottom-4 transition-all",
-            isListening ? "border-destructive ring-2 ring-destructive/20" : "border-border",
+            isListening ? "border-destructive ring-2 ring-destructive/30 bg-destructive/5" : "border-border",
           )}
           onSubmit={(e) => {
             e.preventDefault();
@@ -319,16 +352,16 @@ function Assistant() {
             className="border-0 shadow-none focus-visible:ring-0"
           />
 
-          {/* Voice Input Mic Button */}
+          {/* Enhanced Voice Input Mic Button */}
           <Button
             type="button"
             variant={isListening ? "destructive" : "outline"}
             size="icon"
             onClick={toggleListening}
-            title={isListening ? "Stop listening" : "Voice input"}
-            className={cn("shrink-0", isListening && "animate-pulse")}
+            title={isListening ? "Recording... Click to stop" : "Click to speak"}
+            className={cn("shrink-0 transition-transform active:scale-95", isListening && "animate-pulse")}
           >
-            {isListening ? <MicOff className="size-4" /> : <Mic className="size-4 text-primary" />}
+            {isListening ? <MicOff className="size-4 text-white" /> : <Mic className="size-4 text-primary" />}
           </Button>
 
           <Button type="submit" disabled={thinking || !input.trim()}>
