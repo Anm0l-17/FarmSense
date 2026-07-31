@@ -1,0 +1,419 @@
+# 🌾 AI Farm Companion
+
+> **An AI-powered assistant that helps farmers detect crop diseases, predict market trends, receive intelligent recommendations, and connect with the farming community.**
+
+<p align="center">
+  <img src="docs/assets/logo.png" alt="AI Farm Companion Logo" width="180"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Under%20Development-yellow" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-green" />
+  <img src="https://img.shields.io/badge/Frontend-React-blue" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-336791" />
+  <img src="https://img.shields.io/badge/License-MIT-success" />
+</p>
+
+---
+
+# 📖 Overview
+
+AI Farm Companion is an intelligent farming assistant designed to help farmers make **data-driven decisions**.
+
+The application combines:
+
+- 🌿 AI-based Crop Disease Detection
+- 💹 Market Price Prediction
+- 🌦 Weather Intelligence
+- 🤖 AI-powered Farming Assistant
+- 🌍 Multilingual Support
+- 👨‍🌾 Community Discussion Forum
+
+The goal is to reduce crop losses, improve productivity, and assist farmers in deciding **when to sell their produce**.
+
+---
+
+# 🚀 Features
+
+## 🌱 Crop Disease Detection
+
+- Upload crop/leaf image
+- Detect disease using AI
+- Confidence score
+- Disease severity estimation
+
+---
+
+## 🤖 AI Farming Assistant
+
+- Chat with an AI assistant
+- Disease explanation
+- Treatment suggestions
+- Farming best practices
+- Recommendation explanations
+
+---
+
+## 💹 Smart Market Intelligence
+
+- Current crop prices
+- Historical price trends
+- Predicted future prices
+- Sell/Hold recommendation
+
+---
+
+## 🌦 Weather Intelligence
+
+- Current weather
+- Rain probability
+- Humidity
+- Temperature
+- Weather risk analysis
+
+---
+
+## 📈 Decision Engine
+
+Combines
+
+- Disease severity
+- Market trends
+- Weather conditions
+- Estimated yield loss
+
+to generate a recommendation:
+
+- ✅ Sell
+- ⏳ Hold
+- ⚖ Partial Sell
+
+---
+
+## 🌍 Multilingual Support *(Bonus Feature)*
+
+Supported Languages
+
+- English
+- Hindi
+- Kannada
+
+*(More languages can be added in the future.)*
+
+---
+
+## 👨‍🌾 Community Q&A *(Bonus Feature)*
+
+Farmers can
+
+- Ask questions
+- Answer community queries
+- View AI-generated suggestions
+- Share farming knowledge
+
+---
+
+# 🏗 System Architecture
+
+```
+                 Farmer
+                    │
+                    ▼
+             React Frontend
+                    │
+                    ▼
+             FastAPI Backend
+                    │
+     ┌──────────────┼──────────────┐
+     │              │              │
+     ▼              ▼              ▼
+ PostgreSQL     AI/ML Models    External APIs
+     │              │              │
+     │         Disease Model   Weather API
+     │         Price Model     Market Data
+     │         Yield Model
+     │
+     └──────────────┼──────────────┘
+                    ▼
+             Decision Engine
+                    │
+                    ▼
+               LLM Assistant
+                    │
+                    ▼
+              Recommendation
+```
+
+---
+
+# 🛠 Tech Stack
+
+## Frontend
+
+- React
+- Vite
+- Tailwind CSS
+- Axios
+- React Router
+
+---
+
+## Backend
+
+- FastAPI
+- Python
+- SQLAlchemy
+- Alembic
+
+---
+
+## Database
+
+- PostgreSQL
+
+---
+
+## AI / ML
+
+- PyTorch / TensorFlow *(TBD)*
+- OpenCV
+- Scikit-learn
+- Pandas
+- NumPy
+
+---
+
+## LLM
+
+- Ollama (Local)
+- Gemini API *(Fallback/Optional)*
+
+---
+
+## APIs
+
+- Weather API
+- Market Price API / Dataset
+
+---
+
+# 🗄 Database
+
+Main Tables
+
+```
+users
+
+crop_diagnoses
+
+recommendations
+
+market_prices
+
+weather
+
+community_posts
+
+community_answers
+```
+
+ER Diagram will be added in `/docs`.
+
+---
+
+# 📂 Project Structure
+
+```
+ai-farm-companion/
+
+├── frontend/
+│
+├── backend/
+│
+├── database/
+│
+├── ml/
+│
+├── docs/
+│
+├── .env.example
+│
+├── docker-compose.yml
+│
+└── README.md
+```
+
+---
+
+# ⚙ Installation
+
+## Clone Repository
+
+```bash
+git clone https://github.com/<username>/ai-farm-companion.git
+
+cd ai-farm-companion
+```
+
+---
+
+## Backend
+
+```bash
+cd backend
+
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload
+```
+
+---
+
+## Frontend
+
+```bash
+cd frontend
+
+npm install
+
+npm run dev
+```
+
+---
+
+# 🌐 API Endpoints (Planned)
+
+## Authentication
+
+```
+POST /auth/register
+
+POST /auth/login
+```
+
+---
+
+## Crop
+
+```
+POST /crop/diagnose
+
+GET /crop/history
+```
+
+---
+
+## Weather
+
+```
+GET /weather
+```
+
+---
+
+## Market
+
+```
+GET /market/{crop}
+
+GET /market/{crop}/prediction
+```
+
+---
+
+## Recommendation
+
+```
+POST /recommendation
+```
+
+---
+
+## Chatbot
+
+```
+POST /chat
+```
+
+---
+
+## Community
+
+```
+GET /community/posts
+
+POST /community/posts
+
+POST /community/posts/{id}/answers
+```
+
+---
+
+# 🧪 Testing
+
+Planned Testing
+
+- Unit Testing
+- API Testing
+- Integration Testing
+- Frontend Testing
+
+Tools
+
+- Pytest
+- Postman
+
+---
+
+# 📌 Development Status
+
+| Module | Status |
+|---------|:------:|
+| Frontend UI | 🚧 In Progress |
+| Backend API | 🚧 In Progress |
+| Database | 🚧 In Progress |
+| Disease Detection | ⏳ Planned |
+| Weather Integration | ⏳ Planned |
+| Market Prediction | ⏳ Planned |
+| Recommendation Engine | ⏳ Planned |
+| AI Chatbot | ⏳ Planned |
+| Multilingual Support | ⏳ Planned |
+| Community Q&A | ⏳ Planned |
+| Testing | ⏳ Planned |
+
+---
+
+# 🚀 Future Scope
+
+- WhatsApp Integration
+- Voice-based Interaction
+- Government Scheme Recommendations
+- Pest Outbreak Alerts
+- Satellite Image Integration
+- Offline Mode
+- Mobile Application
+
+---
+
+# 👥 Team
+
+| Name | Role |
+|------|------|
+| Member 1 | Frontend Developer & Integration |
+| Member 2 | Backend Developer, AI/ML & Database |
+
+---
+
+# 📄 License
+
+This project is developed as part of a Hackathon and is released under the **MIT License**.
+
+---
+
+# 🙏 Acknowledgements
+
+Special thanks to the open-source community and the datasets, APIs, and AI frameworks that make this project possible.
+
+---
+
+## ⭐ If you found this project interesting, consider giving it a star!
