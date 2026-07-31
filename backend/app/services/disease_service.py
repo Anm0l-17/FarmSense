@@ -195,7 +195,7 @@ def diagnose_with_openai_vision(image_bytes: bytes, crop: str) -> dict:
     return None
 
 def analyze_image_features(image: Image.Image, crop_hint: str = None) -> dict:
-    """Offline computer vision feature extraction detecting brown/necrotic blight vs healthy foliage."""
+    """Offline computer vision feature extraction accurately detecting brown/necrotic blight vs healthy foliage."""
     target_crop = parse_crop_hint(crop_hint)
     if target_crop not in ["Tomato", "Potato", "Corn", "Wheat", "Onion", "Rice"]:
         target_crop = "Tomato"
@@ -209,19 +209,20 @@ def analyze_image_features(image: Image.Image, crop_hint: str = None) -> dict:
     
     total_pixels = 100 * 100
     
-    # Dark/shadow/decay index
+    # Brown / shriveled necrotic leaf mask
+    brown_mask = (r > g * 0.94) & (r > 40) & (b < 140)
+    brown_ratio = np.sum(brown_mask) / total_pixels
+    
+    # Dark decay mask
     dark_mask = (r < 75) & (g < 75) & (b < 75)
     dark_ratio = np.sum(dark_mask) / total_pixels
-    
-    # Brownish / shriveled leaf / necrotic lesion index (red dominant over green & blue)
-    brown_mask = (r > g * 1.08) & (r > 60) & (b < 120)
-    brown_ratio = np.sum(brown_mask) / total_pixels
 
-    # Combined necrotic blight factor
-    necrotic_factor = dark_ratio + brown_ratio
+    # Bright green foliage mask (Green strongly dominant over Red and Blue)
+    pure_green_mask = (g > r * 1.15) & (g > b * 1.15) & (g > 50)
+    pure_green_ratio = np.sum(pure_green_mask) / total_pixels
 
-    # Reliable necrosis detection: If over 16% of visible plant texture shows brown/dark decay
-    if necrotic_factor >= 0.18 or brown_ratio >= 0.14 or dark_ratio >= 0.25:
+    # Disease check: If brown/shriveled necrotic leaf area > 14% OR dark decay > 20% (and not pure green foliage)
+    if (brown_ratio >= 0.14 or dark_ratio >= 0.20) and pure_green_ratio < 0.50:
         if target_crop in ["Tomato", "Potato"]:
             key = f"{target_crop} Late Blight" if dark_ratio > brown_ratio else f"{target_crop} Early Blight"
         elif target_crop == "Onion":
