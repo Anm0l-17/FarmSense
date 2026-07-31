@@ -84,6 +84,7 @@ If your project needs an API key to run, make sure `.env.example` is up to date 
 <img width="1600" height="865" alt="image" src="https://github.com/user-attachments/assets/6b822517-e862-43d9-9bf3-098616921efb" />
 <img width="1600" height="928" alt="image" src="https://github.com/user-attachments/assets/2d291bab-404e-40de-acc8-1b564ce2f90b" />
 <img width="1600" height="928" alt="image" src="https://github.com/user-attachments/assets/578653d5-35fc-4dcd-8096-4b5b7963022c" />
+<img width="1499" height="810" alt="image" src="https://github.com/user-attachments/assets/f319b59b-89a2-491e-b189-9ef1a9e9bdee" />
 
 
 
