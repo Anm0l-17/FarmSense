@@ -30,10 +30,40 @@ def generate_ai_response(
             if rec:
                 context_str += f"\n[Advisor Decision: {rec.decision}, Reason: {rec.reason}, Current Price: ₹{rec.current_price}, Predicted 7D Price: ₹{rec.predicted_price}]"
 
+    openai_key = getattr(settings, "OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
     gemini_key = getattr(settings, "GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
-    openai_key = os.getenv("OPENAI_API_KEY", "")
 
-    # 1. Primary: Google Gemini API
+    # 1. Primary: OpenAI API (GPT-4o-mini)
+    if openai_key and "your_" not in openai_key:
+        try:
+            headers = {
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. Explain crop health diagnosis, disease treatments, and market advice in clear, encouraging, practical terms. Always respond entirely in {lang_name}."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"{context_str}\n\nFarmer Question: {message}"
+                    }
+                ],
+                "max_tokens": 500
+            }
+            res = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                return data["choices"][0]["message"]["content"].strip()
+            else:
+                print(f"OpenAI API status {res.status_code}: {res.text}. Attempting failover to Gemini.")
+        except Exception as e:
+            print(f"OpenAI API error ({e}). Attempting failover to Gemini.")
+
+    # 2. Secondary Failover: Google Gemini API
     if gemini_key and "your_" not in gemini_key:
         try:
             import google.generativeai as genai
@@ -58,37 +88,7 @@ def generate_ai_response(
                     continue
 
         except Exception as e:
-            print(f"Gemini API error ({e}). Attempting failover to OpenAI.")
-
-    # 2. Secondary Failover: OpenAI API (GPT-4o-mini)
-    if openai_key and "your_" not in openai_key:
-        try:
-            headers = {
-                "Authorization": f"Bearer {openai_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": f"You are AgriSense, an expert agricultural advisor helping smallholder farmers. Explain crop health, treatments, and market advice in simple terms. Respond entirely in {lang_name}."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"{context_str}\n\nFarmer Question: {message}"
-                    }
-                ],
-                "max_tokens": 500
-            }
-            res = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10)
-            if res.status_code == 200:
-                data = res.json()
-                return data["choices"][0]["message"]["content"].strip()
-            else:
-                print(f"OpenAI API status {res.status_code}: {res.text}")
-        except Exception as e:
-            print(f"OpenAI API failover error ({e}). Using intelligent offline response engine.")
+            print(f"Gemini API failover error ({e}). Using intelligent offline response engine.")
 
     # 3. Offline Intelligent Fallback Response
     if language == "hi":

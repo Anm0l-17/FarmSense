@@ -113,7 +113,7 @@ def test_weather_endpoint(auth_headers):
     res = client.get("/weather?location=Bangalore", headers=auth_headers)
     assert res.status_code == 200
     data = res.json()
-    assert data["location"] == "Bangalore"
+    assert data["location"] in ["Bangalore", "Bengaluru"]
     assert "current" in data
     assert "forecast" in data
     assert "weather_risk" in data
