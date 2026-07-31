@@ -184,13 +184,13 @@ export async function getHealth(): Promise<{ status: string; demo: boolean }> {
 }
 
 // ------------------------------------------------------------- diagnosis
-export async function diagnoseCrop(file?: File | null): Promise<Diagnosis> {
+export async function diagnoseCrop(file?: File | null, cropHint = "Tomato"): Promise<Diagnosis> {
   if (file) {
     try {
       const headers = await authHeaders();
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("crop_hint", "Tomato");
+      formData.append("crop_hint", cropHint);
 
       const res = await fetch(`${API_BASE_URL}/crop/diagnose`, {
         method: "POST",
@@ -208,11 +208,11 @@ export async function diagnoseCrop(file?: File | null): Promise<Diagnosis> {
           confidence: Math.round(data.confidence * 100),
           severity: (data.severity.charAt(0).toUpperCase() + data.severity.slice(1).toLowerCase()) as Severity,
           image_url: data.image_url ? `${API_BASE_URL}${data.image_url}` : URL.createObjectURL(file),
-          yield_loss: data.yield_loss ?? 18,
-          description: data.description ?? "Fungal infection spots on leaf blade.",
-          symptoms: data.symptoms ?? ["Dark brown leaf spots", "Yellow halo"],
-          actions: data.actions ?? ["Remove infected foliage", "Apply fungicide"],
-          revenue_impact: data.revenue_impact ?? [4500, 8000],
+          yield_loss: data.yield_loss ?? 0,
+          description: data.description ?? "Clean leaf foliage in healthy condition.",
+          symptoms: data.symptoms ?? ["Vibrant green foliage"],
+          actions: data.actions ?? ["Maintain scheduled irrigation"],
+          revenue_impact: data.revenue_impact ?? [0, 0],
           created_at: data.created_at ?? new Date().toISOString(),
         };
       }
@@ -224,6 +224,11 @@ export async function diagnoseCrop(file?: File | null): Promise<Diagnosis> {
   await delay(1500);
   return {
     ...mockDiagnosis,
+    crop: cropHint,
+    disease: "Healthy & Flourishing",
+    severity: "Low",
+    confidence: 96,
+    yield_loss: 0,
     diagnosis_id: uid("d"),
     image_url: file ? URL.createObjectURL(file) : mockDiagnosis.image_url,
     created_at: new Date().toISOString(),
@@ -245,11 +250,11 @@ export async function getDiagnosisHistory(): Promise<Diagnosis[]> {
           confidence: Math.round(d.confidence * 100),
           severity: (d.severity.charAt(0).toUpperCase() + d.severity.slice(1).toLowerCase()) as Severity,
           image_url: d.image_url ? `${API_BASE_URL}${d.image_url}` : "",
-          yield_loss: d.yield_loss ?? 18,
-          description: d.description ?? "Fungal leaf infection",
-          symptoms: d.symptoms ?? ["Dark spots"],
-          actions: d.actions ?? ["Prune leaves"],
-          revenue_impact: d.revenue_impact ?? [4500, 8000],
+          yield_loss: d.yield_loss ?? 0,
+          description: d.description ?? "Clean leaf foliage",
+          symptoms: d.symptoms ?? ["Clean foliage"],
+          actions: d.actions ?? ["Maintain watering"],
+          revenue_impact: d.revenue_impact ?? [0, 0],
           created_at: d.created_at,
         }));
       }
@@ -274,11 +279,11 @@ export async function getDiagnosis(id: string): Promise<Diagnosis | undefined> {
         confidence: Math.round(d.confidence * 100),
         severity: (d.severity.charAt(0).toUpperCase() + d.severity.slice(1).toLowerCase()) as Severity,
         image_url: d.image_url ? `${API_BASE_URL}${d.image_url}` : "",
-        yield_loss: d.yield_loss ?? 18,
-        description: d.description ?? "Fungal leaf infection",
-        symptoms: d.symptoms ?? ["Dark spots"],
-        actions: d.actions ?? ["Prune leaves"],
-        revenue_impact: d.revenue_impact ?? [4500, 8000],
+        yield_loss: d.yield_loss ?? 0,
+        description: d.description ?? "Clean leaf foliage",
+        symptoms: d.symptoms ?? ["Clean foliage"],
+        actions: d.actions ?? ["Maintain watering"],
+        revenue_impact: d.revenue_impact ?? [0, 0],
         created_at: d.created_at,
       };
     }

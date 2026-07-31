@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bot, CalendarClock, Save, TrendingDown } from "lucide-react";
+import { Bot, CalendarClock, Save, TrendingDown, CheckCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { SeverityBadge, SeverityScale } from "@/components/common/severity";
 import { RecommendationCard } from "@/components/common/RecommendationCard";
 import { useFarm } from "@/lib/farm-store";
@@ -33,6 +34,8 @@ function DiagnosisResult() {
   const { t } = useI18n();
   const { diagnosis, recommendation, saveDiagnosis } = useFarm();
 
+  const isHealthy = diagnosis.severity === "Low" || diagnosis.disease.toLowerCase().includes("healthy");
+
   return (
     <AppLayout title="Diagnosis Result" subtitle="AI analysis of your uploaded crop image.">
       <div className="mx-auto max-w-5xl space-y-5">
@@ -51,43 +54,58 @@ function DiagnosisResult() {
                 )}
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Crop</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Crop Specimen</p>
                 <p className="text-2xl font-bold">{diagnosis.crop}</p>
-                <p className="text-sm text-muted-foreground">
-                  Possible Disease: <span className="font-semibold text-foreground">{diagnosis.disease}</span>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  AI Assessment:{" "}
+                  <span className={isHealthy ? "font-bold text-success" : "font-semibold text-foreground"}>
+                    {diagnosis.disease}
+                  </span>
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">AI Confidence</p>
-              <p className="text-3xl font-bold text-primary">{diagnosis.confidence}%</p>
-              <SeverityBadge level={diagnosis.severity} className="mt-1" />
+
+            {/* AI Confidence - Green Positive Meter */}
+            <div className="w-full sm:w-48 text-right space-y-1">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-muted-foreground uppercase tracking-wide">AI Confidence</span>
+                <span className="text-success font-bold">{diagnosis.confidence}%</span>
+              </div>
+              <Progress value={diagnosis.confidence} className="h-2.5 bg-muted [&>div]:bg-success" />
+              <div className="pt-1">
+                <SeverityBadge level={diagnosis.severity} />
+              </div>
             </div>
           </div>
 
           <div className="mt-6">
             <SeverityScale level={diagnosis.severity} />
             <p className="mt-3 text-sm text-muted-foreground">
-              {diagnosis.severity} severity detected. Action and regular monitoring are recommended.
+              {isHealthy
+                ? "✨ Healthy crop condition detected! Continue regular maintenance and monitoring."
+                : `${diagnosis.severity} severity detected. Immediate preventive treatment is recommended.`}
             </p>
           </div>
         </section>
 
         <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
           <div className="space-y-5">
-            <section className="surface-card p-5">
-              <h2 className="font-semibold">What does this mean?</h2>
+            <section className={isHealthy ? "surface-card border-success/30 bg-success/5 p-5" : "surface-card p-5"}>
+              <h2 className="font-semibold flex items-center gap-2">
+                {isHealthy ? <CheckCircle className="size-5 text-success" /> : <Sparkles className="size-5 text-primary" />}
+                What does this mean?
+              </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {diagnosis.description}
               </p>
 
               <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Symptoms
+                Observed Indicators
               </h3>
               <ul className="mt-2 space-y-1.5 text-sm">
                 {diagnosis.symptoms.map((s) => (
-                  <li key={s} className="flex gap-2">
-                    <span aria-hidden className="text-warning">
+                  <li key={s} className="flex gap-2 items-center">
+                    <span aria-hidden className={isHealthy ? "text-success" : "text-warning"}>
                       •
                     </span>
                     {s}
@@ -97,7 +115,7 @@ function DiagnosisResult() {
             </section>
 
             <section className="surface-card p-5">
-              <h2 className="font-semibold">What should I do?</h2>
+              <h2 className="font-semibold">Recommended Farm Actions</h2>
               <ol className="mt-3 space-y-2 text-sm">
                 {diagnosis.actions.map((a, i) => (
                   <li key={a} className="flex gap-3">
@@ -122,18 +140,35 @@ function DiagnosisResult() {
           </div>
 
           <div className="space-y-5">
-            <section className="surface-card border-warning/40 bg-warning/10 p-5">
+            {/* Impact Box - Lenient for Healthy */}
+            <section
+              className={
+                isHealthy
+                  ? "surface-card border-success/40 bg-success/10 p-5"
+                  : "surface-card border-warning/40 bg-warning/10 p-5"
+              }
+            >
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <TrendingDown className="size-4 text-warning" aria-hidden />
-                Estimated Potential Yield Loss
+                {isHealthy ? (
+                  <CheckCircle className="size-4 text-success" aria-hidden />
+                ) : (
+                  <TrendingDown className="size-4 text-warning" aria-hidden />
+                )}
+                {isHealthy ? "Protected Yield Status" : "Estimated Potential Yield Loss"}
               </div>
-              <p className="mt-2 text-4xl font-bold">{diagnosis.yield_loss}%</p>
+              <p className={isHealthy ? "mt-2 text-4xl font-bold text-success" : "mt-2 text-4xl font-bold"}>
+                {diagnosis.yield_loss}%
+              </p>
               <p className="mt-2 text-sm">
                 Potential Revenue Impact:{" "}
-                <span className="font-semibold">{formatRange(diagnosis.revenue_impact)}</span>
+                <span className="font-semibold">
+                  {isHealthy ? "₹0 (Full Yield Retained)" : formatRange(diagnosis.revenue_impact)}
+                </span>
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Estimate based on available crop and disease information.
+                {isHealthy
+                  ? "Your crop is healthy! No financial loss expected from this crop area."
+                  : "Estimate based on disease severity and crop area."}
               </p>
             </section>
 
@@ -144,9 +179,9 @@ function DiagnosisResult() {
               <dl className="mt-3 space-y-2 text-sm">
                 {[
                   ["Analyzed", formatDate(diagnosis.created_at)],
-                  ["Crop", diagnosis.crop],
-                  ["Confidence", `${diagnosis.confidence}%`],
-                  ["Severity", diagnosis.severity],
+                  ["Crop Specimen", diagnosis.crop],
+                  ["AI Confidence", `${diagnosis.confidence}%`],
+                  ["Health Severity", diagnosis.severity],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">{k}</dt>

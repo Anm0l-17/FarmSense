@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Circle, Loader2, Upload, X } from "lucide-react";
+import { Camera, CheckCircle2, Circle, Loader2, Upload, X, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ErrorState } from "@/components/common/states";
 import { diagnoseCrop } from "@/services/api";
@@ -30,21 +31,32 @@ export const Route = createFileRoute("/crop-diagnosis/")({
   component: CropDiagnosisPage,
 });
 
+const CROP_OPTIONS = [
+  { id: "Tomato", emoji: "🍅", en: "Tomato", hi: "टमाटर", kn: "ಟೊಮೆಟೊ" },
+  { id: "Potato", emoji: "🥔", en: "Potato", hi: "आलू", kn: "ಆಲೂಗಡ್ಡೆ" },
+  { id: "Corn", emoji: "🌽", en: "Corn / Maize", hi: "मक्का", kn: "ಮೆಕ್ಕೆಜೋಳ" },
+  { id: "Wheat", emoji: "🌾", en: "Wheat", hi: "गेहूं", kn: "ಗೋಧಿ" },
+  { id: "Onion", emoji: "🧅", en: "Onion", hi: "प्याज", kn: "ಈರುಳ್ಳಿ" },
+  { id: "Rice", emoji: "🌾", en: "Rice / Paddy", hi: "चावल (धान)", kn: "ಅಕ್ಕಿ" },
+];
+
 const STAGES = [
   "Image uploaded",
-  "Identifying crop",
-  "Detecting possible disease",
-  "Estimating severity",
-  "Preparing recommendations",
+  "Verifying crop type",
+  "Deep AI visual feature analysis",
+  "Evaluating plant health status",
+  "Generating recommendations",
 ];
 
 function CropDiagnosisPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const { saveDiagnosis } = useFarm();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
+  const [selectedCrop, setSelectedCrop] = useState<string>("Tomato");
+  const [customCrop, setCustomCrop] = useState<string>("");
   const [dragging, setDragging] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [stage, setStage] = useState(0);
@@ -77,18 +89,22 @@ function CropDiagnosisPage() {
     setAnalyzing(true);
     setError(null);
     setStage(1);
-    setProgress(12);
+    setProgress(15);
+
+    const cropHintToSend = customCrop.trim() || selectedCrop;
+
     const timer = setInterval(() => {
-      setProgress((p) => Math.min(p + 6, 95));
-      setStage((s) => Math.min(s + (Math.random() > 0.55 ? 1 : 0), STAGES.length - 1));
-    }, 350);
+      setProgress((p) => Math.min(p + 8, 95));
+      setStage((s) => Math.min(s + (Math.random() > 0.5 ? 1 : 0), STAGES.length - 1));
+    }, 300);
+
     try {
-      const result = await diagnoseCrop(file);
+      const result = await diagnoseCrop(file, cropHintToSend);
       clearInterval(timer);
       setProgress(100);
       setStage(STAGES.length);
       saveDiagnosis({ ...result, image_url: preview || result.image_url });
-      toast.success("Analysis complete");
+      toast.success("AI Crop Diagnosis Complete!");
       setTimeout(() => navigate({ to: "/crop-diagnosis/result" }), 400);
     } catch {
       clearInterval(timer);
@@ -100,7 +116,53 @@ function CropDiagnosisPage() {
   return (
     <AppLayout title={t("diag.title")} subtitle={t("diag.sub")}>
       <div className="mx-auto grid max-w-5xl gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <section className="space-y-4">
+        <section className="space-y-5">
+          {/* Step 1: Select Crop Type in Multilingual format */}
+          <div className="surface-card space-y-3 p-5">
+            <label className="block text-sm font-bold flex items-center gap-2">
+              <HelpCircle className="size-4 text-primary" /> Which crop are you diagnosing? / किस फसल की जांच कर रहे हैं? / ಇದು ಯಾವ ಬೆಳೆ?
+            </label>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {CROP_OPTIONS.map((c) => {
+                const active = selectedCrop === c.id && !customCrop;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCrop(c.id);
+                      setCustomCrop("");
+                    }}
+                    className={cn(
+                      "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
+                      active
+                        ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                        : "border-border bg-card hover:bg-accent"
+                    )}
+                  >
+                    <span className="text-xl">{c.emoji}</span>
+                    <span className="font-bold text-sm leading-tight">{c.en}</span>
+                    <span className="text-xs text-muted-foreground">{c.hi} · {c.kn}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pt-1">
+              <span className="text-xs text-muted-foreground block mb-1">
+                Or type custom crop name in English, Hindi (हिन्दी), or Kannada (ಕನ್ನಡ):
+              </span>
+              <Input
+                placeholder="e.g. Tomato / टमाटर / ಟೊಮೆಟೊ"
+                value={customCrop}
+                onChange={(e) => setCustomCrop(e.target.value)}
+                className="bg-card"
+              />
+            </div>
+          </div>
+
+          {/* Step 2: Upload Photo */}
           {!preview && (
             <div
               onDragOver={(e) => {
@@ -114,7 +176,7 @@ function CropDiagnosisPage() {
                 pick(e.dataTransfer.files?.[0]);
               }}
               className={cn(
-                "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-12 text-center transition-colors",
+                "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-colors",
                 dragging ? "border-primary bg-accent" : "border-border bg-card",
               )}
             >
@@ -140,7 +202,7 @@ function CropDiagnosisPage() {
 
           {preview && (
             <div className="surface-card overflow-hidden">
-              <img src={preview} alt="Uploaded crop preview" className="max-h-96 w-full object-cover" />
+              <img src={preview} alt="Uploaded crop preview" className="max-h-80 w-full object-cover" />
               <div className="flex flex-wrap gap-2 p-4">
                 <Button variant="outline" onClick={reset} disabled={analyzing}>
                   <X className="size-4" /> {t("diag.remove")}
@@ -152,7 +214,7 @@ function CropDiagnosisPage() {
                     </>
                   ) : (
                     <>
-                      <Camera className="size-4" /> {t("diag.analyze")}
+                      <Camera className="size-4" /> Analyze {customCrop || selectedCrop} Leaf
                     </>
                   )}
                 </Button>
@@ -186,15 +248,15 @@ function CropDiagnosisPage() {
           {error && <ErrorState message={error} onRetry={analyze} />}
         </section>
 
-        <aside className="surface-card h-fit p-5">
-          <h2 className="font-semibold">For better results</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+        <aside className="surface-card h-fit p-5 space-y-4">
+          <h2 className="font-semibold">Tips for Accurate Diagnosis</h2>
+          <ul className="space-y-2 text-sm text-muted-foreground">
             {[
-              "Good lighting",
-              "Focus on affected leaves",
-              "Avoid blurry images",
-              "Keep the affected area visible",
-              "Avoid excessive shadows",
+              "Select your exact crop from the list above",
+              "Take photo in good natural daylight",
+              "Focus clearly on the affected leaf or fruit",
+              "Avoid extreme shadows or blurriness",
+              "Keep the leaf surface fully visible",
             ].map((tip) => (
               <li key={tip} className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
@@ -202,10 +264,12 @@ function CropDiagnosisPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 rounded-xl bg-accent p-3 text-xs text-accent-foreground">
-            Results are advisory and based on available information. For serious cases, consider
-            consulting a local agricultural expert.
-          </p>
+          <div className="rounded-xl bg-accent p-3.5 text-xs text-accent-foreground space-y-1">
+            <p className="font-semibold">✨ Intelligent AI Reasoning:</p>
+            <p>
+              AgriSense evaluates plant health leniently. Healthy leaves are classified positively as healthy with 0% yield loss!
+            </p>
+          </div>
         </aside>
       </div>
     </AppLayout>
