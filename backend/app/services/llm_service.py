@@ -1,4 +1,5 @@
-import google.generativeai as genai
+import os
+import requests
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database.models import CropDiagnosis, Recommendation
@@ -27,11 +28,15 @@ def generate_ai_response(
             if rec:
                 context_str += f"\n[Advisor Decision: {rec.decision}, Reason: {rec.reason}, Current Price: ₹{rec.current_price}, Predicted 7D Price: ₹{rec.predicted_price}]"
 
-    api_key = settings.GEMINI_API_KEY
-    if api_key and api_key != "your_gemini_api_key_here":
+    gemini_key = getattr(settings, "GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+
+    # 1. Try Gemini API first if key provided
+    if gemini_key and "your_" not in gemini_key:
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
             
             system_prompt = (
                 f"You are AgriSense, an empathetic, expert agricultural advisor helping smallholder farmers. "
@@ -45,19 +50,49 @@ def generate_ai_response(
             if response and response.text:
                 return response.text.strip()
         except Exception as e:
-            print(f"Gemini API error ({e}). Using expert offline response engine.")
+            print(f"Gemini API error ({e}). Trying OpenAI or fallback.")
 
-    # Intelligent fallback responses by language
+    # 2. Try OpenAI API if OpenAI key provided
+    if openai_key and "your_" not in openai_key:
+        try:
+            headers = {
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": f"You are AgriSense, an expert agricultural advisor helping smallholder farmers. Explain crop health, treatments, and market advice in simple terms. Respond entirely in {lang_name}."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"{context_str}\n\nFarmer Question: {message}"
+                    }
+                ],
+                "max_tokens": 500
+            }
+            res = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                return data["choices"][0]["message"]["content"].strip()
+            else:
+                print(f"OpenAI API status {res.status_code}: {res.text}")
+        except Exception as e:
+            print(f"OpenAI API error ({e}). Using offline fallback engine.")
+
+    # 3. Offline intelligent fallback responses by language
     if language == "hi":
         return (
-            f"नमस्कार! आपके फसल ({context_str or 'फसल'}) के लिए हमारी सलाह:\n"
-            f"1. प्रभावित पत्तियों को तुरंत हटा दें।\n"
-            f"2. सही फफूंदनाशक (Fungicide) का छिड़काव करें।\n"
-            f"3. बाज़ार के रुझानों के अनुसार, सही समय पर उपज बेचें।"
+            f"नमस्कार! फसल ({context_str or 'फसल'}) के लिए कृषि सलाह:\n"
+            f"1. प्रभावित पत्तियों को तुरंत काटकर दूर कर दें।\n"
+            f"2. कॉपर ऑक्सीक्लोराइड या मैंकोज़ेब (Mancozeb) फफूंदनाशक का छिड़काव करें।\n"
+            f"3. बाज़ार भाव का अनुमान देखकर सही समय पर बिक्री करें।"
         )
     elif language == "kn":
         return (
-            f"ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಬೆಳೆಯ ಆರೈಕೆಗಾಗಿ ನಮ್ಮ ಸಲಹೆಗಳು:\n"
+            f"ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಬೆಳೆಯ ({context_str or 'ಬೆಳೆ'}) ಆರೈಕೆಗಾಗಿ ಸಲಹೆಗಳು:\n"
             f"1. ರೋಗಪೀಡಿತ ಎಲೆಗಳನ್ನು ತೆಗೆದುಹಾಕಿ.\n"
             f"2. ಸೂಕ್ತವಾದ ಶಿಲೀಂಧ್ರನಾಶಕವನ್ನು ಸಿಂಪಡಿಸಿ.\n"
             f"3. ಮಾರುಕಟ್ಟೆ ದರವನ್ನು ಗಮನಿಸಿ ಮಾರಾಟ ಮಾಡಿ."
