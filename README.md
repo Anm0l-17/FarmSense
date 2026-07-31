@@ -16,7 +16,7 @@ Submission for the Synaptrix
 
 AI Farm Companion is an AI-powered decision-support platform that helps farmers make smarter, timely farming decisions. It analyzes crop images to detect diseases and assess severity, while combining weather conditions, market prices, price trends, and estimated yield impact. The system then provides actionable Sell, Hold, or Sell Partially recommendations with clear AI-generated explanations. It also offers a multilingual AI farm assistant and a Community Q&A platform for accessible, farmer-focused support.
 
-## AI Component(Optional)
+## AI Component
 
 OpenAI API — GPT-4o-mini for AI-powered crop image analysis, farming recommendations, and the AI Farm Assistant.
 
@@ -79,7 +79,13 @@ cp .env.example .env
 
 If your project needs an API key to run, make sure `.env.example` is up to date so judges can test it easily (or provide a demo mode/mock key if the key is private).
 
-## Screenshots (Optional)
+## Screenshots
+<img width="1600" height="928" alt="image" src="https://github.com/user-attachments/assets/2138654f-1b9b-4ea2-bd7a-3d393c41e7c0" />
+<img width="1600" height="865" alt="image" src="https://github.com/user-attachments/assets/6b822517-e862-43d9-9bf3-098616921efb" />
+<img width="1600" height="928" alt="image" src="https://github.com/user-attachments/assets/2d291bab-404e-40de-acc8-1b564ce2f90b" />
+<img width="1600" height="928" alt="image" src="https://github.com/user-attachments/assets/578653d5-35fc-4dcd-8096-4b5b7963022c" />
+
+
 
 ## How to Run This Project
 
