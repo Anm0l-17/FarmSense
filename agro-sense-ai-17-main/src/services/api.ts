@@ -504,6 +504,7 @@ export async function askChatbot(
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         message: question,
+        diagnosis_id: (context as any)?.diagnosis_id,
         language: language,
       }),
     });
@@ -521,10 +522,63 @@ export async function askChatbot(
     console.warn("Chatbot API failed, using offline response.", e);
   }
 
+  const q = question.toLowerCase();
+  const crop = context.crop || "Onion";
+  const disease = context.disease || "Purple Blotch";
+  const severity = context.severity || "MODERATE";
+  const currPrice = context.current_price || 2400;
+  const predPrice = context.predicted_price || 2750;
+  const yieldLoss = context.yield_loss || "15-25%";
+  const decision = context.recommendation || "HOLD";
+
+  let dynamicReply = "";
+
+  if (q.includes("price") || q.includes("market") || q.includes("cost") || q.includes("sell") || q.includes("rate") || q.includes("mandi") || q.includes("दाम") || q.includes("कीमत") || q.includes("ಬೆಲೆ") || q.includes("ಮಾರಾಟ")) {
+    if (language === "hi") {
+      dynamicReply = `वर्तमान में ${crop} का मंडी भाव ₹${currPrice}/क्विंटल है। हमारे मॉडल का अनुमान है कि अगले 7 दिनों में भाव बढ़कर ₹${predPrice}/क्विंटल हो जाएगा। वर्तमान सलाह: ${decision === "SELL_IMMEDIATELY" ? "तुरंत बेचें" : decision === "HOLD" ? "रुकें और 7 दिन बाद बेचें" : "मौसम और मांग देखकर निर्णय लें"}।`;
+    } else if (language === "kn") {
+      dynamicReply = `ಪ್ರಸ್ತುತ ${crop} ಮಾರುಕಟ್ಟೆ ದರ ₹${currPrice}/ಕ್ವಿಂಟಾಲ್ ಆಗಿದೆ. ಮುಂದಿನ 7 ದಿನಗಳಲ್ಲಿ ದರ ₹${predPrice}/ಕ್ವಿಂಟಾಲ್ ತಲುಪುವ ನಿರೀಕ್ಷೆಯಿದೆ. ಸಲಹೆ: ${decision}।`;
+    } else {
+      dynamicReply = `The current market price for ${crop} is ₹${currPrice}/quintal. Our 7-day predictive model estimates the price will reach ₹${predPrice}/quintal. Recommended strategy: ${decision} to maximize profit.`;
+    }
+  } else if (q.includes("today") || q.includes("do") || q.includes("action") || q.includes("should") || q.includes("आज") || q.includes("काम") || q.includes("ಇಂದು") || q.includes("ಮಾಡಬೇಕು")) {
+    if (language === "hi") {
+      dynamicReply = `आज आपकी ${crop} फसल के लिए मुख्य कार्य:\n1. ${disease} से प्रभावित पत्तियों की छंटाई करें।\n2. खेत में अतिरिक्त पानी न रुकने दें और कॉपर फफूंदनाशक का छिड़काव करें।\n3. मंडी के बदलते दामों पर नजर रखें।`;
+    } else if (language === "kn") {
+      dynamicReply = `ಇಂದು ನಿಮ್ಮ ${crop} ಬೆಳೆಗೆ ಮಾಡಬೇಕಾದ ಪ್ರಮುಖ ಕೆಲಸಗಳು:\n1. ${disease} ರೋಗಪೀಡಿತ ಭಾಗಗಳನ್ನು ತೆಗೆದುಹಾಕಿ.\n2. ಸೂಕ್ತ ಶಿಲೀಂಧ್ರನಾಶಕವನ್ನು ಸಿಂಪಡಿಸಿ.\n3. ಮಾರುಕಟ್ಟೆ ದರಗಳನ್ನು ಗಮನಿಸಿ.`;
+    } else {
+      dynamicReply = `Key action items for your ${crop} today:\n1. Inspect field and prune leaves showing ${disease} symptoms.\n2. Apply recommended fungicide during dry morning hours.\n3. Ensure proper field drainage to prevent fungal spore buildup.`;
+    }
+  } else if (q.includes("yield") || q.includes("loss") || q.includes("damage") || q.includes("risk") || q.includes("नुकसान") || q.includes("पैदावार") || q.includes("ನಷ್ಟ") || q.includes("ಇಳುವರಿ")) {
+    if (language === "hi") {
+      dynamicReply = `${disease} के कारण वर्तमान ${severity} गंभीरता पर अनुमानित फसल नुकसान ${yieldLoss} हो सकता है। समय पर उपचार करने से इस नुकसान को रोका जा सकता है।`;
+    } else if (language === "kn") {
+      dynamicReply = `${disease} ರೋಗದ ಪರಿಣಾಮವಾಗಿ ನಿಮ್ಮ ${crop} ಇಳುವರಿಯಲ್ಲಿ ಅಂದಾಜು ${yieldLoss} ನಷ್ಟವಾಗುವ ಸಾಧ್ಯತೆಯಿದೆ. ತಕ್ಷಣದ ಚಿಕಿತ್ಸೆ ಅಗತ್ಯ.`;
+    } else {
+      dynamicReply = `With a ${severity} severity diagnosis of ${disease} on your ${crop}, the projected yield loss is estimated at ${yieldLoss} if left untreated. Timely fungicide application can reduce this risk significantly.`;
+    }
+  } else if (q.includes("spray") || q.includes("treatment") || q.includes("fungicide") || q.includes("medicine") || q.includes("disease") || q.includes("दवा") || q.includes("छिड़काव") || q.includes("ಔಷಧಿ") || q.includes("ರೋಗ")) {
+    if (language === "hi") {
+      dynamicReply = `${crop} की ${disease} बीमारी के लिए:\n1. मैनकोज़ेब (Mancozeb 75% WP) या कॉपर ऑक्सीक्लोराइड 2 ग्राम प्रति लीटर पानी में मिलाकर छिड़काव करें।\n2. 10-12 दिनों के बाद पुनः छिड़काव करें।`;
+    } else if (language === "kn") {
+      dynamicReply = `${crop} ಬೆಳೆಗೆ ಬಂದಿರುವ ${disease} ರೋಗಕ್ಕೆ ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ ಅಥವಾ ಮ್ಯಾಂಕೋಜೆಬ್ 2 ಗ್ರಾಂ/ಲೀಟರ್ ನೀರಿಗೆ ಬೆರೆಸಿ ಸಿಂಪಡಿಸಿ.`;
+    } else {
+      dynamicReply = `For treating ${disease} in ${crop}:\n1. Spray Mancozeb 75% WP or Copper Oxychloride at 2g/L of water.\n2. Repeat application after 10-12 days if damp weather persists.`;
+    }
+  } else {
+    if (language === "hi") {
+      dynamicReply = `${crop} स्थिति: ${disease} (${severity} प्रभाव)। बाजार मूल्य ₹${currPrice}/क्विंटल है और सलाह: ${decision}। क्या आप उपचार, नुकसान बचाव या मंडी पूर्वानुमान के बारे में कुछ और पूछना चाहते हैं?`;
+    } else if (language === "kn") {
+      dynamicReply = `${crop} ಬೆಳೆಯ ಸ್ಥಿತಿ: ${disease} (${severity}). ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ದರ ₹${currPrice}/ಕ್ವಿಂಟಾಲ್. ಸಲಹೆ: ${decision}.`;
+    } else {
+      dynamicReply = `Regarding your ${crop} (${disease}, ${severity} severity): The current market price is ₹${currPrice}/quintal with a recommendation to ${decision}. Let me know if you need specific details on chemical sprays, yield loss prevention, or market timing.`;
+    }
+  }
+
   return {
     id: uid("m"),
     role: "assistant",
-    content: `AgriSense AI: Thank you for your question regarding ${context.crop || "your crop"}. Always prune infected leaf spots and check market predictions before harvesting.`,
+    content: dynamicReply,
     created_at: new Date().toISOString(),
   };
 }

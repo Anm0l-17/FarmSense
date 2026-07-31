@@ -177,7 +177,13 @@ function Assistant() {
     window.speechSynthesis.cancel();
     const cleaned = cleanText(text);
     const utterance = new SpeechSynthesisUtterance(cleaned);
-    utterance.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
+    if (/[\u0900-\u097F]/.test(cleaned)) {
+      utterance.lang = "hi-IN";
+    } else if (/[\u0C80-\u0CFF]/.test(cleaned)) {
+      utterance.lang = "kn-IN";
+    } else {
+      utterance.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : "en-IN";
+    }
     utterance.rate = 0.95;
 
     utterance.onend = () => setSpeakingId(null);
