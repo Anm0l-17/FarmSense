@@ -1,4 +1,5 @@
 import uuid
+import json
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
@@ -32,10 +33,27 @@ class CropDiagnosis(Base):
     confidence = Column(Float, nullable=False)
     severity = Column(String(20), nullable=False)
     image_url = Column(String(255), nullable=True)
+    yield_loss = Column(Float, default=18.0)
+    description = Column(Text, nullable=True)
+    symptoms_json = Column(Text, nullable=True)
+    actions_json = Column(Text, nullable=True)
+    revenue_impact_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="diagnoses")
     recommendations = relationship("Recommendation", back_populates="diagnosis")
+
+    @property
+    def symptoms(self):
+        return json.loads(self.symptoms_json) if self.symptoms_json else ["Dark brown spots with concentric rings"]
+
+    @property
+    def actions(self):
+        return json.loads(self.actions_json) if self.actions_json else ["Remove infected lower leaves", "Apply fungicide spray"]
+
+    @property
+    def revenue_impact(self):
+        return json.loads(self.revenue_impact_json) if self.revenue_impact_json else [4500, 8000]
 
 class Recommendation(Base):
     __tablename__ = "recommendations"

@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
@@ -50,7 +51,12 @@ async def create_diagnosis(
         disease=diag_result["disease"],
         confidence=diag_result["confidence"],
         severity=diag_result["severity"],
-        image_url=image_url
+        image_url=image_url,
+        yield_loss=diag_result.get("yield_loss", 18.0),
+        description=diag_result.get("description", ""),
+        symptoms_json=json.dumps(diag_result.get("symptoms", [])),
+        actions_json=json.dumps(diag_result.get("actions", [])),
+        revenue_impact_json=json.dumps(diag_result.get("revenue_impact", [4500, 8000]))
     )
     db.add(db_diagnosis)
     db.commit()

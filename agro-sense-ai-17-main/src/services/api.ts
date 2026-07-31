@@ -1,0 +1,595 @@
+/**
+ * Single source of truth for ALL external data calls connecting React frontend to FastAPI backend.
+ */
+import {
+  buildMarket,
+  mockCommunityPosts,
+  mockDiagnosis,
+  mockHistory,
+  mockNotifications,
+  mockWeather,
+} from "@/data/mock";
+import type {
+  ChatMessage,
+  CommunityAnswer,
+  CommunityPost,
+  Decision,
+  Diagnosis,
+  FarmContextPayload,
+  LanguageCode,
+  MarketData,
+  Recommendation,
+  RiskLevel,
+  Severity,
+  Weather,
+} from "@/types";
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const DEMO_MODE = false;
+
+const TOKEN_KEY = "agrisense_jwt_token";
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
+
+// Helper to get or acquire auth token
+async function getAuthToken(): Promise<string> {
+  let token = localStorage.getItem(TOKEN_KEY);
+  if (token) return token;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Farmer User",
+        phone: `99${Math.floor(10000000 + Math.random() * 90000000)}`,
+        password: "agrisense_demo_pass",
+        location: "Bangalore",
+        preferred_language: "en",
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+        return data.token;
+      }
+    }
+  } catch (e) {
+    console.warn("Auto-registration failed, falling back to mock auth.", e);
+  }
+  return "";
+}
+
+async function authHeaders(): Promise<HeadersInit> {
+  const token = await getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ---------------------------------------------------------------- health
+export async function getHealth(): Promise<{ status: string; demo: boolean }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/health`);
+    if (res.ok) {
+      const data = await res.json();
+      return { status: data.status, demo: false };
+    }
+  } catch (e) {
+    console.warn("Backend offline, using fallback mode.");
+  }
+  return { status: "ok", demo: true };
+}
+
+// ------------------------------------------------------------- diagnosis
+export async function diagnoseCrop(file?: File | null): Promise<Diagnosis> {
+  if (file) {
+    try {
+      const headers = await authHeaders();
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("crop_hint", "Tomato");
+
+      const res = await fetch(`${API_BASE_URL}/crop/diagnose`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          diagnosis_id: data.diagnosis_id,
+          user_id: data.user_id ?? "u_demo",
+          crop: data.crop,
+          disease: data.disease,
+          confidence: Math.round(data.confidence * 100),
+          severity: (data.severity.charAt(0).toUpperCase() + data.severity.slice(1).toLowerCase()) as Severity,
+          image_url: data.image_url ? `${API_BASE_URL}${data.image_url}` : URL.createObjectURL(file),
+          yield_loss: data.yield_loss ?? 18,
+          description: data.description ?? "Fungal infection spots on leaf blade.",
+          symptoms: data.symptoms ?? ["Dark brown leaf spots", "Yellow halo"],
+          actions: data.actions ?? ["Remove infected foliage", "Apply fungicide"],
+          revenue_impact: data.revenue_impact ?? [4500, 8000],
+          created_at: data.created_at ?? new Date().toISOString(),
+        };
+      }
+    } catch (e) {
+      console.warn("Live diagnosis failed, using fallback mock diagnosis.", e);
+    }
+  }
+
+  await delay(1500);
+  return {
+    ...mockDiagnosis,
+    diagnosis_id: uid("d"),
+    image_url: file ? URL.createObjectURL(file) : mockDiagnosis.image_url,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export async function getDiagnosisHistory(): Promise<Diagnosis[]> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/crop/history`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.diagnoses && data.diagnoses.length > 0) {
+        return data.diagnoses.map((d: any) => ({
+          diagnosis_id: d.diagnosis_id,
+          user_id: d.user_id ?? "u_demo",
+          crop: d.crop,
+          disease: d.disease,
+          confidence: Math.round(d.confidence * 100),
+          severity: (d.severity.charAt(0).toUpperCase() + d.severity.slice(1).toLowerCase()) as Severity,
+          image_url: d.image_url ? `${API_BASE_URL}${d.image_url}` : "",
+          yield_loss: d.yield_loss ?? 18,
+          description: d.description ?? "Fungal leaf infection",
+          symptoms: d.symptoms ?? ["Dark spots"],
+          actions: d.actions ?? ["Prune leaves"],
+          revenue_impact: d.revenue_impact ?? [4500, 8000],
+          created_at: d.created_at,
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn("History fetch failed, using mock history.", e);
+  }
+  return mockHistory;
+}
+
+export async function getDiagnosis(id: string): Promise<Diagnosis | undefined> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/crop/${id}`, { headers });
+    if (res.ok) {
+      const d = await res.json();
+      return {
+        diagnosis_id: d.diagnosis_id,
+        user_id: d.user_id ?? "u_demo",
+        crop: d.crop,
+        disease: d.disease,
+        confidence: Math.round(d.confidence * 100),
+        severity: (d.severity.charAt(0).toUpperCase() + d.severity.slice(1).toLowerCase()) as Severity,
+        image_url: d.image_url ? `${API_BASE_URL}${d.image_url}` : "",
+        yield_loss: d.yield_loss ?? 18,
+        description: d.description ?? "Fungal leaf infection",
+        symptoms: d.symptoms ?? ["Dark spots"],
+        actions: d.actions ?? ["Prune leaves"],
+        revenue_impact: d.revenue_impact ?? [4500, 8000],
+        created_at: d.created_at,
+      };
+    }
+  } catch (e) {
+    console.warn("Get diagnosis failed.", e);
+  }
+  return mockHistory.find((d) => d.diagnosis_id === id) ?? mockDiagnosis;
+}
+
+// --------------------------------------------------------------- weather
+export async function getWeather(location = "Bangalore"): Promise<Weather> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/weather?location=${encodeURIComponent(location)}`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      const current = data.current || {};
+      const riskCap = (data.weather_risk ? data.weather_risk.charAt(0).toUpperCase() + data.weather_risk.slice(1).toLowerCase() : "Moderate") as RiskLevel;
+
+      return {
+        location: data.location ?? location,
+        temperature: current.temperature ?? 28,
+        humidity: current.humidity ?? 72,
+        rain_probability: Math.round((current.rain_probability ?? 0.35) * 100),
+        rainfall: 12,
+        wind_speed: current.wind_speed ?? 12,
+        risk: riskCap,
+        risk_reason: `Rain probability is around ${Math.round((current.rain_probability ?? 0.35) * 100)}% with ${current.humidity ?? 72}% humidity.`,
+        risk_factors: ["High humidity", "Moderate rain probability"],
+        timestamp: data.fetched_at ?? new Date().toISOString(),
+      };
+    }
+  } catch (e) {
+    console.warn("Weather fetch failed, using mock weather.", e);
+  }
+  return { ...mockWeather, location, timestamp: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------- market
+export async function getMarketPrices(
+  crop = "Tomato",
+  location = "Bangalore",
+  range: 7 | 30 | 90 = 7,
+): Promise<MarketData> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/market/${crop.toLowerCase()}?days=${range}`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      const predRes = await fetch(`${API_BASE_URL}/market/${crop.toLowerCase()}/prediction`, { headers });
+      let predPrice = data.current_price * 1.1;
+      let trend: "Bullish" | "Bearish" | "Stable" = "Bullish";
+
+      if (predRes.ok) {
+        const predData = await predRes.json();
+        predPrice = predData.predicted_price_7d;
+        trend = predData.trend === "rising" ? "Bullish" : predData.trend === "falling" ? "Bearish" : "Stable";
+      }
+
+      const series = (data.historical_prices || []).map((h: any) => ({
+        label: h.date,
+        price: h.price,
+        predicted: null,
+      }));
+
+      return {
+        crop: data.crop ?? crop,
+        market: "Local Mandi",
+        location: location,
+        current_price: data.current_price ?? 28.5,
+        predicted_price: predPrice,
+        change_percentage: data.price_change_pct ?? 6.5,
+        trend,
+        series,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  } catch (e) {
+    console.warn("Market fetch failed, using mock market.", e);
+  }
+  return buildMarket(crop, location, range);
+}
+
+export async function getPricePrediction(crop = "Tomato") {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/market/${crop.toLowerCase()}/prediction`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        crop: data.crop,
+        current_price: data.current_price,
+        predicted_price: data.predicted_price_7d,
+        change_percentage: data.price_change_pct,
+        trend: data.trend === "rising" ? "Bullish" : data.trend === "falling" ? "Bearish" : "Stable",
+        explanation: `Ridge Regression prediction trained on market history indicates a ${data.trend} price trend.`,
+      };
+    }
+  } catch (e) {
+    console.warn("Prediction fetch failed.", e);
+  }
+  const m = buildMarket(crop);
+  return {
+    crop,
+    current_price: m.current_price,
+    predicted_price: m.predicted_price,
+    change_percentage: Number(
+      (((m.predicted_price - m.current_price) / m.current_price) * 100).toFixed(1),
+    ),
+    trend: m.trend,
+    explanation: "Recent market trends indicate a possible short-term increase.",
+  };
+}
+
+// -------------------------------------------------------- decision engine
+const severityScore: Record<Severity, number> = { Low: 1, Moderate: 2, High: 3 };
+const riskScore: Record<RiskLevel, number> = { Low: 1, Moderate: 2, High: 3 };
+
+export function computeDecision(input: {
+  severity: Severity;
+  weather_risk: RiskLevel;
+  current_price: number;
+  predicted_price: number;
+  yield_loss: number;
+}): { decision: Decision; reason: string; sell_percentage?: number } {
+  const upside = ((input.predicted_price - input.current_price) / input.current_price) * 100;
+  const risk = severityScore[input.severity] + riskScore[input.weather_risk] + input.yield_loss / 10;
+
+  if (risk >= 5.5 || input.yield_loss >= 25) {
+    return {
+      decision: "SELL",
+      reason:
+        "High crop risk and potential yield loss may outweigh the expected market increase. Selling soon may help protect current value.",
+    };
+  }
+  if (upside >= 10 && risk <= 4.5) {
+    return {
+      decision: "HOLD",
+      reason:
+        "Market prices are expected to increase over the next few days while the current crop risk remains manageable.",
+    };
+  }
+  return {
+    decision: "SELL_PARTIALLY",
+    reason:
+      "Lock in part of the current value while keeping some crop available for a possible price increase.",
+    sell_percentage: 40,
+  };
+}
+
+export async function getRecommendation(payload: {
+  diagnosis_id: string;
+  severity: Severity;
+  weather_risk: RiskLevel;
+  current_price: number;
+  predicted_price: number;
+  yield_loss: number;
+}): Promise<Recommendation> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/recommendation`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        diagnosis_id: payload.diagnosis_id || "d_demo",
+        crop: "tomato",
+        location: "Bangalore",
+        affected_area_pct: payload.yield_loss * 1.5,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        recommendation_id: data.recommendation_id,
+        diagnosis_id: payload.diagnosis_id,
+        decision: data.decision as Decision,
+        current_price: data.current_price,
+        predicted_price: data.predicted_price,
+        disease_severity: payload.severity,
+        weather_risk: payload.weather_risk,
+        yield_loss: data.yield_loss,
+        reason: data.reason,
+        sell_percentage: data.decision === "SELL_PARTIALLY" ? 40 : undefined,
+        created_at: data.created_at ?? new Date().toISOString(),
+      };
+    }
+  } catch (e) {
+    console.warn("Recommendation API failed, using client decision engine.", e);
+  }
+
+  const { decision, reason, sell_percentage } = computeDecision(payload);
+  return {
+    recommendation_id: uid("r"),
+    diagnosis_id: payload.diagnosis_id,
+    decision,
+    current_price: payload.current_price,
+    predicted_price: payload.predicted_price,
+    disease_severity: payload.severity,
+    weather_risk: payload.weather_risk,
+    yield_loss: payload.yield_loss,
+    reason,
+    sell_percentage,
+    created_at: new Date().toISOString(),
+  };
+}
+
+// ------------------------------------------------------------------ chat
+export async function askChatbot(
+  question: string,
+  context: FarmContextPayload = {},
+  language: LanguageCode = "en",
+): Promise<ChatMessage> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/chat`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        language: language,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        id: uid("m"),
+        role: "assistant",
+        content: data.reply,
+        created_at: new Date().toISOString(),
+      };
+    }
+  } catch (e) {
+    console.warn("Chatbot API failed, using offline response.", e);
+  }
+
+  return {
+    id: uid("m"),
+    role: "assistant",
+    content: `AgriSense AI: Thank you for your question regarding ${context.crop || "your crop"}. Always prune infected leaf spots and check market predictions before harvesting.`,
+    created_at: new Date().toISOString(),
+  };
+}
+
+// ------------------------------------------------------------- community
+export async function getCommunityPosts(): Promise<CommunityPost[]> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/community/posts`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.posts && data.posts.length > 0) {
+        return data.posts.map((p: any) => ({
+          post_id: p.post_id,
+          author: p.user_name ?? "Farmer",
+          crop: p.crop,
+          category: "Disease",
+          question: p.question,
+          created_at: p.created_at,
+          answer_count: p.answer_count,
+          like_count: 5,
+          answers: [],
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn("Community posts fetch failed.", e);
+  }
+  return mockCommunityPosts;
+}
+
+export async function getCommunityPost(id: string): Promise<CommunityPost | undefined> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/community/posts/${id}`, { headers });
+    if (res.ok) {
+      const p = await res.json();
+      return {
+        post_id: p.post_id,
+        author: p.user_name ?? "Farmer",
+        crop: p.crop,
+        category: "Disease",
+        question: p.question,
+        created_at: p.created_at,
+        answer_count: p.answers?.length ?? 0,
+        like_count: 5,
+        answers: (p.answers || []).map((a: any) => ({
+          answer_id: a.answer_id,
+          post_id: p.post_id,
+          author: a.user_name ?? (a.is_ai_generated ? "AgriSense AI" : "Farmer"),
+          answer: a.answer,
+          is_ai_generated: a.is_ai_generated,
+          created_at: a.created_at,
+          like_count: a.is_ai_generated ? 12 : 3,
+        })),
+      };
+    }
+  } catch (e) {
+    console.warn("Community post detail fetch failed.", e);
+  }
+  return mockCommunityPosts.find((p) => p.post_id === id);
+}
+
+export async function createCommunityPost(input: {
+  crop: string;
+  category: CommunityPost["category"];
+  question: string;
+  image_url?: string;
+}): Promise<CommunityPost> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/community/posts`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        crop: input.crop,
+        question: input.question,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        post_id: data.post_id,
+        author: "Farmer",
+        crop: data.crop,
+        category: input.category,
+        question: data.question,
+        created_at: data.created_at,
+        answer_count: 1,
+        like_count: 0,
+        answers: [
+          {
+            answer_id: data.ai_answer?.answer_id ?? uid("a"),
+            post_id: data.post_id,
+            author: "AgriSense AI",
+            answer: data.ai_answer?.answer ?? "AI advice generated.",
+            is_ai_generated: true,
+            created_at: data.created_at,
+            like_count: 1,
+          },
+        ],
+      };
+    }
+  } catch (e) {
+    console.warn("Post creation failed.", e);
+  }
+
+  const post: CommunityPost = {
+    post_id: uid("p"),
+    author: "Ramesh Kumar",
+    created_at: new Date().toISOString(),
+    answer_count: 1,
+    like_count: 0,
+    answers: [
+      {
+        answer_id: uid("a"),
+        post_id: "",
+        author: "AI Farm Assistant",
+        answer: `Based on available information about ${input.crop.toLowerCase()}, this may be related to local weather and crop conditions.`,
+        is_ai_generated: true,
+        created_at: new Date().toISOString(),
+        like_count: 0,
+      },
+    ],
+    ...input,
+  };
+  post.answers[0].post_id = post.post_id;
+  return post;
+}
+
+export async function addCommunityAnswer(
+  postId: string,
+  answer: string,
+): Promise<CommunityAnswer> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE_URL}/community/posts/${postId}/answers`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ answer }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        answer_id: data.answer_id,
+        post_id: postId,
+        author: data.user_name ?? "Farmer",
+        answer: data.answer,
+        is_ai_generated: false,
+        created_at: data.created_at,
+        like_count: 0,
+      };
+    }
+  } catch (e) {
+    console.warn("Add answer failed.", e);
+  }
+
+  return {
+    answer_id: uid("a"),
+    post_id: postId,
+    author: "Ramesh Kumar",
+    answer,
+    is_ai_generated: false,
+    created_at: new Date().toISOString(),
+    like_count: 0,
+  };
+}
+
+// --------------------------------------------------------- notifications
+export async function getNotifications() {
+  await delay(300);
+  return mockNotifications;
+}
